@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
-import { Play, PlusCircle, LogIn, Sparkles, Users, Layers } from 'lucide-react';
+import { PlusCircle, LogIn, Sparkles, Users, Layers, ShieldCheck } from 'lucide-react';
 
 export default function Home({ onCreateRoom, onJoinRoom, error }) {
   const [username, setUsername] = useState('');
+  const [maxPlayers, setMaxPlayers] = useState(4);
   const [roomCodeInput, setRoomCodeInput] = useState('');
-  const [mode, setMode] = useState('menu'); // 'menu' | 'join'
+  const [mode, setMode] = useState('menu'); // 'menu' | 'create' | 'join'
 
   const handleCreate = (e) => {
     e.preventDefault();
     if (!username.trim()) return;
-    onCreateRoom(username.trim());
+    onCreateRoom(username.trim(), maxPlayers);
   };
 
   const handleJoin = (e) => {
@@ -69,11 +70,11 @@ export default function Home({ onCreateRoom, onJoinRoom, error }) {
           </div>
         </div>
 
-        {/* Menu Actions */}
+        {/* Mode Selector / Forms */}
         {mode === 'menu' ? (
           <div className="w-full flex flex-col gap-4">
             <button
-              onClick={handleCreate}
+              onClick={() => setMode('create')}
               disabled={!username.trim()}
               className="w-full py-4 px-6 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-bold text-white shadow-lg shadow-red-950/50 flex items-center justify-center gap-3 transition-all duration-200 transform active:scale-98"
             >
@@ -90,6 +91,52 @@ export default function Home({ onCreateRoom, onJoinRoom, error }) {
               <span>Join Existing Room</span>
             </button>
           </div>
+        ) : mode === 'create' ? (
+          /* Create Room Options Sub-form */
+          <form onSubmit={handleCreate} className="w-full flex flex-col gap-5">
+            <div>
+              <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2 ml-1 flex items-center gap-1.5">
+                <Users className="w-4 h-4 text-emerald-400" />
+                <span>Max Player Limit</span>
+              </label>
+
+              {/* Room Size Selector Pills */}
+              <div className="grid grid-cols-4 gap-2">
+                {[2, 3, 4, 6, 8, 10, 11].map((size) => (
+                  <button
+                    key={size}
+                    type="button"
+                    onClick={() => setMaxPlayers(size)}
+                    className={`py-2.5 rounded-xl font-bold text-sm border transition-all ${
+                      maxPlayers === size
+                        ? 'bg-red-600 border-red-400 text-white shadow-md shadow-red-900/40 scale-105'
+                        : 'bg-slate-950/70 border-slate-800 text-slate-400 hover:bg-slate-800 hover:text-white'
+                    }`}
+                  >
+                    {size} Players
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-1">
+              <button
+                type="button"
+                onClick={() => setMode('menu')}
+                className="flex-1 py-3.5 bg-slate-800 hover:bg-slate-700 rounded-xl font-semibold text-slate-300 transition-colors"
+              >
+                Back
+              </button>
+              <button
+                type="submit"
+                disabled={!username.trim()}
+                className="flex-2 py-3.5 px-6 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-bold text-white shadow-lg shadow-red-950/50 flex items-center justify-center gap-2 transition-all"
+              >
+                <PlusCircle className="w-5 h-5" />
+                <span>Create ({maxPlayers} Players)</span>
+              </button>
+            </div>
+          </form>
         ) : (
           /* Join Room Input Sub-form */
           <form onSubmit={handleJoin} className="w-full flex flex-col gap-4">
@@ -132,7 +179,7 @@ export default function Home({ onCreateRoom, onJoinRoom, error }) {
         <div className="mt-8 pt-6 border-t border-slate-800/80 w-full flex justify-around text-slate-400 text-xs font-medium">
           <div className="flex items-center gap-1.5">
             <Users className="w-4 h-4 text-emerald-400" />
-            <span>2 - 4 Players</span>
+            <span>2 - 11 Players</span>
           </div>
           <div className="flex items-center gap-1.5">
             <Layers className="w-4 h-4 text-yellow-400" />

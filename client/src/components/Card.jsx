@@ -1,5 +1,5 @@
 import React from 'react';
-import { Ban, RotateCw, Plus, Sparkles } from 'lucide-react';
+import { Ban, RotateCw, Sparkles } from 'lucide-react';
 
 export default function Card({ card, isFaceDown = false, onClick, disabled = false, isPlayable = false, size = 'normal' }) {
   if (isFaceDown) {
@@ -88,9 +88,9 @@ export default function Card({ card, isFaceDown = false, onClick, disabled = fal
       disabled={disabled}
       className={`relative ${dimensionClasses} rounded-2xl border-2 shadow-xl flex flex-col justify-between p-1.5 sm:p-2 select-none transition-all duration-200 transform ${bgStyle} ${
         isPlayable
-          ? 'cursor-pointer hover:-translate-y-4 hover:scale-105 hover:ring-4 hover:ring-white/80 animate-pulse-glow z-10'
+          ? '-translate-y-4 sm:-translate-y-5 hover:-translate-y-8 cursor-pointer shadow-2xl z-30 opacity-100'
           : disabled
-          ? 'cursor-not-allowed opacity-80'
+          ? 'translate-y-0 opacity-50 grayscale-[30%] cursor-not-allowed pointer-events-none shadow-md'
           : 'hover:-translate-y-1'
       }`}
     >

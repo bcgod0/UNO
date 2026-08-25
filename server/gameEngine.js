@@ -152,6 +152,9 @@ export function sanitizeRoomForPlayer(room, socketId) {
     currentTurnPlayerId: room.players[room.currentTurn]?.id,
     direction: room.direction, // 1 for clockwise, -1 for CCW
     deckCount: room.deck.length,
+    turnDeadline: room.turnDeadline || null,
     winner: room.winner,
     logs: room.logs ? room.logs.slice(-10) : [],
-    isMyTurn: room.players[room
+    isMyTurn: room.players[room.currentTurn]?.id === socketId
+  };
+}

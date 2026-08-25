@@ -68,6 +68,50 @@ function addLog(room, message) {
   if (room.logs.length > 20) room.logs.shift();
 }
 
+/**
+ * Clear existing turn timer for room
+ */
+function clearTurnTimer(room) {
+  if (room && room.turnTimer) {
+    clearTimeout(room.turnTimer);
+    room.turnTimer = null;
+  }
+}
+
+/**
+ * Reset 20-second turn timer for active room
+ */
+function resetTurnTimer(room) {
+  clearTurnTimer(room);
+  if (!room || room.gameState !== 'PLAYING') return;
+
+  room.turnDeadline = Date.now() + 20000;
+
+  room.turnTimer = setTimeout(() => {
+    handleTurnTimeout(room);
+  }, 20000);
+}
+
+/**
+ * Handle 20-second turn expiration: penalize current player 1 card & advance turn
+ */
+function handleTurnTimeout(room) {
+  if (!room || room.gameState !== 'PLAYING') return;
+
+  const currentPlayer = room.players[room.currentTurn];
+  if (currentPlayer) {
+    const penaltyCard = drawCards(room.deck, room.discardPile, 1);
+    if (penaltyCard.length > 0) {
+      currentPlayer.hand.push(...penaltyCard);
+    }
+    addLog(room, `⏰ Time's up! ${currentPlayer.name} was penalized 1 card for taking too long.`);
+  }
+
+  advanceTurn(room, 1);
+  resetTurnTimer(room);
+  broadcastRoomState(room.code);
+}
+
 io.on('connection', (socket) => {
   console.log(`🔌 Client connected: ${socket.id}`);
 
@@ -77,7 +121,7 @@ io.on('connection', (socket) => {
       return socket.emit('error-msg', 'Username is required.');
     }
 
-    const roomMaxPlayers = Math.min(Math.max(parseInt(maxPlayers) || 4, 2), 10);
+    const roomMaxPlayers = Math.min(Math.max(parseInt(maxPlayers) || 4, 2), 15);
     const roomCode = generateRoomCode();
     const player = {
       id: socket.id,
@@ -100,6 +144,8 @@ io.on('connection', (socket) => {
       currentColor: null,
       winner: null,
       logs: [],
+      turnTimer: null,
+      turnDeadline: null,
     };
 
     rooms.set(roomCode, newRoom);
@@ -194,6 +240,7 @@ io.on('connection', (socket) => {
     room.winner = null;
 
     addLog(room, `Game started! Top card is ${initialCard.color.toUpperCase()} ${initialCard.value}`);
+    resetTurnTimer(room);
     broadcastRoomState(roomCode);
   });
 
@@ -226,6 +273,7 @@ io.on('connection', (socket) => {
 
     // Check WIN condition
     if (currentPlayer.hand.length === 0) {
+      clearTurnTimer(room);
       room.gameState = 'FINISHED';
       room.winner = { id: currentPlayer.id, name: currentPlayer.name };
       addLog(room, `🎉 ${currentPlayer.name} WON THE GAME! 🎉`);
@@ -280,6 +328,7 @@ io.on('connection', (socket) => {
 
     // Advance turn
     advanceTurn(room, skipSteps);
+    resetTurnTimer(room);
     broadcastRoomState(roomCode);
   });
 
@@ -301,6 +350,7 @@ io.on('connection', (socket) => {
 
     // Advance turn after drawing
     advanceTurn(room, 1);
+    resetTurnTimer(room);
     broadcastRoomState(roomCode);
   });
 
@@ -310,14 +360,10 @@ io.on('connection', (socket) => {
     if (!room || room.gameState !== 'PLAYING') return;
 
     const player = room.players.find((p) => p.id === socket.id);
-    if (!player) return;
-
-    if (player.hand.length <= 2) {
+    if (player) {
       player.calledUno = true;
-      addLog(room, `🔥 ${player.name} shouted UNO!`);
+      addLog(room, `📢 ${player.name} CALLED UNO!`);
       broadcastRoomState(roomCode);
-    } else {
-      socket.emit('error-msg', 'You can only call UNO when you have 1 or 2 cards left!');
     }
   });
 
@@ -347,6 +393,7 @@ io.on('connection', (socket) => {
       return socket.emit('error-msg', 'Only host can restart the game.');
     }
 
+    clearTurnTimer(room);
     room.gameState = 'LOBBY';
     room.winner = null;
     room.deck = [];
@@ -377,6 +424,7 @@ io.on('connection', (socket) => {
 
       // If room is empty, delete room
       if (room.players.length === 0) {
+        clearTurnTimer(room);
         rooms.delete(roomCode);
         console.log(`Room ${roomCode} deleted (empty).`);
         return;
@@ -392,7 +440,24 @@ io.on('connection', (socket) => {
       // Adjust turn index if game was playing
       if (room.gameState === 'PLAYING') {
         if (room.players.length < 2) {
+          clearTurnTimer(room);
           room.gameState = 'FINISHED';
           room.winner = room.players[0];
           addLog(room, `Game ended due to insufficient players. ${room.players[0].name} wins!`);
-        } else if (room.currentTurn >= room.players
+        } else if (room.currentTurn >= room.players.length) {
+          room.currentTurn = 0;
+          resetTurnTimer(room);
+        } else {
+          resetTurnTimer(room);
+        }
+      }
+
+      broadcastRoomState(roomCode);
+    }
+  });
+});
+
+const PORT = process.env.PORT || 5000;
+httpServer.listen(PORT, () => {
+  console.log(`🚀 UNO Server running on http://localhost:${PORT}`);
+});

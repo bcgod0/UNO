@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Card from './Card';
 import ColorPickerModal from './ColorPickerModal';
 import GameOverModal from './GameOverModal';
@@ -7,8 +7,10 @@ import {
   AlertTriangle,
   RotateCw,
   RotateCcw,
-  Volume2,
   ScrollText,
+  Maximize,
+  Minimize,
+  Clock,
   UserCheck,
   Award,
 } from 'lucide-react';
@@ -26,6 +28,8 @@ export default function GameBoard({
 }) {
   const [selectedWildCardIndex, setSelectedWildCardIndex] = useState(null);
   const [showLogs, setShowLogs] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(20);
 
   const {
     code,
@@ -36,10 +40,48 @@ export default function GameBoard({
     currentTurnPlayerId,
     direction,
     deckCount,
+    turnDeadline,
     winner,
     logs,
     isMyTurn,
   } = gameState;
+
+  // Toggle Browser Fullscreen
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().then(() => setIsFullscreen(true)).catch(console.error);
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen().then(() => setIsFullscreen(false)).catch(console.error);
+      }
+    }
+  };
+
+  // Sync Fullscreen state on escape key
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  // 20-Second Turn Countdown Timer
+  useEffect(() => {
+    if (!turnDeadline) {
+      setTimeLeft(20);
+      return;
+    }
+
+    const updateTimer = () => {
+      const remaining = Math.max(0, Math.ceil((turnDeadline - Date.now()) / 1000));
+      setTimeLeft(remaining);
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 500);
+    return () => clearInterval(interval);
+  }, [turnDeadline, currentTurnIndex]);
 
   // Locate current player and relative opponents
   const myIndex = players.findIndex((p) => p.id === myId);
@@ -54,9 +96,20 @@ export default function GameBoard({
     }
   }
 
+  // Check if a specific card in hand is a legal play
+  const isCardPlayable = (card) => {
+    if (!isMyTurn || !card) return false;
+    if (card.color === 'wild') return true;
+    if (!topDiscard) return true;
+    if (currentColor && card.color === currentColor) return true;
+    if (topDiscard.value !== undefined && card.value !== undefined && card.value === topDiscard.value) return true;
+    if (topDiscard.type !== undefined && card.type !== 'number' && card.type === topDiscard.type) return true;
+    return false;
+  };
+
   // Handle card click
-  const handleCardClick = (cardIndex) => {
-    if (!isMyTurn) return;
+  const handleCardClick = (cardIndex, playable) => {
+    if (!isMyTurn || !playable) return;
 
     const card = me.hand[cardIndex];
     if (!card) return;
@@ -99,14 +152,34 @@ export default function GameBoard({
           </div>
         </div>
 
-        {/* Action Logs Toggle */}
+        {/* Header Action Controls */}
         <div className="flex items-center gap-2">
+          {/* Fullscreen Button */}
+          <button
+            onClick={toggleFullscreen}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-xs font-semibold text-slate-300 transition-all"
+            title="Toggle Fullscreen"
+          >
+            {isFullscreen ? (
+              <>
+                <Minimize className="w-4 h-4 text-emerald-400" />
+                <span className="hidden sm:inline">Exit Fullscreen</span>
+              </>
+            ) : (
+              <>
+                <Maximize className="w-4 h-4 text-emerald-400" />
+                <span className="hidden sm:inline">Fullscreen</span>
+              </>
+            )}
+          </button>
+
+          {/* Action Logs Toggle */}
           <button
             onClick={() => setShowLogs(!showLogs)}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-xs font-semibold text-slate-300 transition-all"
           >
             <ScrollText className="w-4 h-4 text-indigo-400" />
-            <span>{showLogs ? 'Hide Logs' : 'Action Logs'}</span>
+            <span className="hidden sm:inline">{showLogs ? 'Hide Logs' : 'Action Logs'}</span>
           </button>
         </div>
       </header>
@@ -154,8 +227,9 @@ export default function GameBoard({
             >
               {/* Turn Indicator Highlight */}
               {opp.isCurrentTurn && (
-                <div className="absolute -top-3 px-2 py-0.5 bg-yellow-400 text-slate-950 font-black text-[10px] uppercase tracking-wider rounded-full shadow">
-                  THINKING...
+                <div className="absolute -top-3 px-2 py-0.5 bg-yellow-400 text-slate-950 font-black text-[10px] uppercase tracking-wider rounded-full shadow flex items-center gap-1">
+                  <Clock className="w-3 h-3 animate-spin-slow" />
+                  <span>THINKING ({timeLeft}s)</span>
                 </div>
               )}
 
@@ -190,12 +264,13 @@ export default function GameBoard({
           ))}
         </div>
 
-        {/* Center Table: Discard Pile & Draw Deck */}
+        {/* Center Table: Discard Pile, Draw Deck & 20s Turn Timer */}
         <div className="relative my-auto flex flex-col items-center">
-          {/* Active Color & Turn Banner */}
+          {/* Active Color, Direction & 20s Turn Timer */}
           <div className="mb-4 flex items-center gap-3 bg-slate-900/90 border border-slate-800 px-6 py-2.5 rounded-full shadow-xl backdrop-blur-md">
+            {/* Color Badge */}
             <div className="flex items-center gap-1.5">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Current Color:</span>
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Color:</span>
               <span className={`px-3 py-1 rounded-full font-black text-xs uppercase shadow-md ${colorBadgeClasses}`}>
                 {currentColor || 'ANY'}
               </span>
@@ -203,13 +278,26 @@ export default function GameBoard({
 
             <div className="h-4 w-px bg-slate-700"></div>
 
+            {/* Turn Timer Badge */}
+            <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full font-black text-xs transition-all ${
+              timeLeft <= 5
+                ? 'bg-red-600 text-white animate-pulse shadow-lg shadow-red-600/50 scale-105'
+                : 'bg-slate-800 text-yellow-400 border border-slate-700'
+            }`}>
+              <Clock className="w-3.5 h-3.5" />
+              <span>0:{timeLeft < 10 ? `0${timeLeft}` : timeLeft}</span>
+            </div>
+
+            <div className="h-4 w-px bg-slate-700"></div>
+
+            {/* Direction */}
             <div className="flex items-center gap-1.5 text-xs font-bold text-slate-300">
               {direction === 1 ? (
                 <RotateCw className="w-4 h-4 text-emerald-400 animate-spin-slow" />
               ) : (
                 <RotateCcw className="w-4 h-4 text-emerald-400 animate-spin-slow" />
               )}
-              <span>{direction === 1 ? 'Clockwise' : 'Counter-Clockwise'}</span>
+              <span className="hidden sm:inline">{direction === 1 ? 'Clockwise' : 'Counter-CCW'}</span>
             </div>
           </div>
 
@@ -249,15 +337,16 @@ export default function GameBoard({
             </div>
           </div>
 
-          {/* Turn Alert Message */}
+          {/* Turn Alert Banner */}
           <div className="mt-4">
             {isMyTurn ? (
-              <div className="px-6 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-extrabold text-sm rounded-full shadow-lg shadow-emerald-950/50 animate-bounce">
-                ✨ YOUR TURN! PLAY A CARD OR DRAW ✨
+              <div className="px-6 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-extrabold text-sm rounded-full shadow-lg shadow-emerald-950/50 animate-bounce flex items-center gap-2">
+                <span>✨ YOUR TURN! ({timeLeft}s) ✨</span>
               </div>
             ) : (
-              <div className="px-6 py-2 bg-slate-900 border border-slate-800 text-slate-400 font-semibold text-xs rounded-full">
-                Waiting for {players[currentTurnIndex]?.name || 'opponent'}'s move...
+              <div className="px-6 py-2 bg-slate-900 border border-slate-800 text-slate-400 font-semibold text-xs rounded-full flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-yellow-400" />
+                <span>Waiting for {players[currentTurnIndex]?.name || 'opponent'} ({timeLeft}s left)...</span>
               </div>
             )}
           </div>
@@ -278,18 +367,21 @@ export default function GameBoard({
             </button>
           </div>
 
-          {/* Player Hand Cards Grid / Scrollable Row */}
+          {/* Player Hand Cards Grid / Scrollable Row with Playable Highlighting */}
           <div className="w-full max-w-5xl px-4 flex justify-center items-end -space-x-4 sm:-space-x-6 overflow-x-auto pb-4 pt-6">
-            {me.hand.map((card, idx) => (
-              <div key={card.id || idx} className="transform transition-transform hover:-translate-y-6 hover:z-30">
-                <Card
-                  card={card}
-                  onClick={() => handleCardClick(idx)}
-                  disabled={!isMyTurn}
-                  isPlayable={isMyTurn}
-                />
-              </div>
-            ))}
+            {me.hand.map((card, idx) => {
+              const playable = isCardPlayable(card);
+              return (
+                <div key={card.id || idx} className="transform transition-transform">
+                  <Card
+                    card={card}
+                    onClick={() => handleCardClick(idx, playable)}
+                    disabled={!isMyTurn || !playable}
+                    isPlayable={isMyTurn && playable}
+                  />
+                </div>
+              );
+            })}
           </div>
         </div>
       </main>

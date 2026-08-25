@@ -50,10 +50,10 @@ export default function App() {
     };
   }, []);
 
-  const handleCreateRoom = (name) => {
+  const handleCreateRoom = (name, maxPlayers) => {
     setUsername(name);
     if (!socket.connected) socket.connect();
-    socket.emit('create-room', { username: name });
+    socket.emit('create-room', { username: name, maxPlayers });
   };
 
   const handleJoinRoom = (name, code) => {

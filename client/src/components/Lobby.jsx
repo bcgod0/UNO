@@ -4,9 +4,9 @@ import { Crown, Copy, Check, Users, Play, ShieldAlert, User } from 'lucide-react
 export default function Lobby({ gameState, onStartGame, myId, error }) {
   const [copied, setCopied] = useState(false);
 
-  const { code, players, hostId } = gameState;
+  const { code, players, hostId, maxPlayers = 4 } = gameState;
   const isHost = hostId === myId;
-  const canStart = isHost && players.length >= 2 && players.length <= 4;
+  const canStart = isHost && players.length >= 2 && players.length <= maxPlayers;
 
   const copyRoomCode = () => {
     navigator.clipboard.writeText(code);
@@ -53,7 +53,7 @@ export default function Lobby({ gameState, onStartGame, myId, error }) {
             <span>Connected Players</span>
           </div>
           <span className="text-xs font-semibold px-3 py-1 bg-slate-800 rounded-full text-slate-400">
-            {players.length} / 4 Players
+            {players.length} / {maxPlayers} Players
           </span>
         </div>
 
@@ -96,8 +96,8 @@ export default function Lobby({ gameState, onStartGame, myId, error }) {
             );
           })}
 
-          {/* Empty Slot Placeholders up to 4 */}
-          {Array.from({ length: 4 - players.length }).map((_, idx) => (
+          {/* Empty Slot Placeholders up to maxPlayers */}
+          {Array.from({ length: Math.max(0, maxPlayers - players.length) }).map((_, idx) => (
             <div
               key={`empty-${idx}`}
               className="flex items-center justify-center p-4 border border-dashed border-slate-800 rounded-2xl text-slate-600 text-xs font-semibold gap-2"
