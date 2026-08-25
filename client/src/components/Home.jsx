@@ -108,13 +108,13 @@ export default function Home({ onCreateRoom, onJoinRoom, error, isConnected }) {
               </label>
 
               {/* Room Size Selector Pills */}
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-1.5 sm:gap-2">
                 {[2, 3, 4, 6, 8, 10, 11].map((size) => (
                   <button
                     key={size}
                     type="button"
                     onClick={() => setMaxPlayers(size)}
-                    className={`py-2.5 rounded-xl font-bold text-sm border transition-all ${
+                    className={`py-2 sm:py-2.5 px-1 rounded-xl font-bold text-xs sm:text-sm border transition-all ${
                       maxPlayers === size
                         ? 'bg-red-600 border-red-400 text-white shadow-md shadow-red-900/40 scale-105'
                         : 'bg-slate-950/70 border-slate-800 text-slate-400 hover:bg-slate-800 hover:text-white'
@@ -126,21 +126,21 @@ export default function Home({ onCreateRoom, onJoinRoom, error, isConnected }) {
               </div>
             </div>
 
-            <div className="flex gap-3 mt-1">
+            <div className="flex gap-2 sm:gap-3 mt-1">
               <button
                 type="button"
                 onClick={() => setMode('menu')}
-                className="flex-1 py-3.5 bg-slate-800 hover:bg-slate-700 rounded-xl font-semibold text-slate-300 transition-colors"
+                className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 rounded-xl font-semibold text-xs sm:text-sm text-slate-300 transition-colors"
               >
                 Back
               </button>
               <button
                 type="submit"
                 disabled={!username.trim()}
-                className="flex-2 py-3.5 px-6 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-bold text-white shadow-lg shadow-red-950/50 flex items-center justify-center gap-2 transition-all"
+                className="flex-2 py-3 px-4 sm:px-6 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-bold text-xs sm:text-sm text-white shadow-lg shadow-red-950/50 flex items-center justify-center gap-1.5 sm:gap-2 transition-all"
               >
-                <PlusCircle className="w-5 h-5" />
-                <span>Create ({maxPlayers} Players)</span>
+                <PlusCircle className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span>Create ({maxPlayers} P)</span>
               </button>
             </div>
           </form>
