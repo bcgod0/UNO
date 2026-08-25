@@ -136,69 +136,119 @@
   animation: floatSlow 4s ease-in-out infinite;
 }
 
-/* Mobile Horizontal (Landscape Phone) Layout Styles - Max Height 520px */
-/* DOES NOT APPLY TO DESKTOP (Desktop height is > 520px) */
-@media (orientation: landscape) and (max-height: 520px) {
+/* Mobile Horizontal (Landscape Phone) & Short Screen Layout Styles */
+/* DOES NOT APPLY TO DESKTOP (Desktop height is > 600px) */
+@media (max-height: 600px), (max-width: 950px) and (orientation: landscape) {
+  .mobile-landscape-board {
+    height: 100vh !important;
+    max-height: 100vh !important;
+    overflow: hidden !important;
+    justify-content: space-between !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+  }
+
   .mobile-landscape-header {
-    padding-top: 0.25rem !important;
-    padding-bottom: 0.25rem !important;
-    height: 2.5rem !important;
+    padding-top: 0.15rem !important;
+    padding-bottom: 0.15rem !important;
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+    height: 2.2rem !important;
+    min-height: 2.2rem !important;
+  }
+
+  /* Hide button text on mobile landscape header to save horizontal & vertical space */
+  .mobile-landscape-header button span {
+    display: none !important;
+  }
+
+  .mobile-landscape-header button {
+    padding: 0.2rem 0.4rem !important;
   }
 
   .mobile-landscape-opponents {
-    margin-bottom: 0.25rem !important;
-    padding-top: 0.25rem !important;
-    max-height: 3.8rem !important;
+    margin-bottom: 0.1rem !important;
+    padding-top: 0.05rem !important;
+    max-height: 3.2rem !important;
+    gap: 0.35rem !important;
   }
 
-  .mobile-landscape-table-surface {
-    padding: 0.35rem 1rem !important;
-    gap: 1.5rem !important;
+  .mobile-landscape-opponents > div {
+    padding: 0.15rem 0.35rem !important;
+    border-radius: 0.5rem !important;
   }
 
   .mobile-landscape-pill {
-    padding-top: 0.15rem !important;
-    padding-bottom: 0.15rem !important;
-    padding-left: 0.75rem !important;
-    padding-right: 0.75rem !important;
-    font-size: 0.7rem !important;
+    padding-top: 0.1rem !important;
+    padding-bottom: 0.1rem !important;
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+    gap: 0.35rem !important;
+  }
+
+  .mobile-landscape-pill span {
+    font-size: 0.65rem !important;
+  }
+
+  .mobile-landscape-pill div {
+    padding-top: 0.05rem !important;
+    padding-bottom: 0.05rem !important;
+    padding-left: 0.35rem !important;
+    padding-right: 0.35rem !important;
+    font-size: 0.65rem !important;
+  }
+
+  .mobile-landscape-table-surface {
+    padding: 0.25rem 0.75rem !important;
+    gap: 0.75rem !important;
+    border-radius: 0.75rem !important;
   }
 
   .mobile-landscape-turn-banner {
-    padding-top: 0.2rem !important;
-    padding-bottom: 0.2rem !important;
-    font-size: 0.75rem !important;
+    padding-top: 0.1rem !important;
+    padding-bottom: 0.1rem !important;
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+    font-size: 0.65rem !important;
   }
 
   .mobile-landscape-action-bar {
-    gap: 0.5rem !important;
+    gap: 0.35rem !important;
   }
 
   .mobile-landscape-uno-btn {
-    padding-top: 0.35rem !important;
-    padding-bottom: 0.35rem !important;
-    padding-left: 1.25rem !important;
-    padding-right: 1.25rem !important;
-    font-size: 0.875rem !important;
+    padding-top: 0.2rem !important;
+    padding-bottom: 0.2rem !important;
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+    font-size: 0.7rem !important;
+    border-radius: 0.5rem !important;
+  }
+
+  .mobile-landscape-uno-btn svg {
+    width: 0.75rem !important;
+    height: 0.75rem !important;
   }
 
   .mobile-landscape-hand-container {
-    padding-top: 0.5rem !important;
-    padding-bottom: 0.25rem !important;
+    padding-top: 0.1rem !important;
+    padding-bottom: 0.1rem !important;
+    margin-top: -0.25rem !important;
+    margin-bottom: 0.1rem !important;
   }
 
   .card-large-landscape {
-    width: 3.8rem !important;
-    height: 5.6rem !important;
+    width: 3rem !important;
+    height: 4.4rem !important;
   }
 
   .card-normal-landscape {
-    width: 2.8rem !important;
-    height: 4.2rem !important;
+    width: 2.3rem !important;
+    height: 3.4rem !important;
   }
 
   .card-small-landscape {
-    width: 2rem !important;
-    height: 3rem !important;
+    width: 1.6rem !important;
+    height: 2.4rem !important;
   }
 }
