@@ -86,9 +86,24 @@ export function drawCards(deck, discardPile, count = 1) {
 
 /**
  * Validates if a card can be legally played on top of current discard.
+ * Rules for Stacking:
+ * - +2 can be countered with +2 or +4
+ * - +4 can ONLY be countered with another +4
  */
-export function isValidMove(card, topDiscardCard, activeColor) {
+export function isValidMove(card, topDiscardCard, activeColor, pendingDrawCount = 0) {
   if (!card || !topDiscardCard) return false;
+
+  // If there's an active stacked penalty (+2 or +4):
+  if (pendingDrawCount > 0) {
+    if (topDiscardCard.type === 'wild4') {
+      // +4 card can ONLY be countered with another +4 card!
+      return card.type === 'wild4';
+    }
+    if (topDiscardCard.type === 'draw2') {
+      // +2 card can be countered with +2 or +4!
+      return card.type === 'draw2' || card.type === 'wild4';
+    }
+  }
 
   // Wild cards can always be played
   if (card.color === 'wild') {
@@ -155,6 +170,7 @@ export function sanitizeRoomForPlayer(room, socketId) {
     turnDeadline: room.turnDeadline || null,
     winner: room.winner,
     logs: room.logs ? room.logs.slice(-10) : [],
-    isMyTurn: room.players[room.currentTurn]?.id === socketId
+    isMyTurn: room.players[room.currentTurn]?.id === socketId,
+    pendingDrawCount: room.pendingDrawCount || 0,
   };
 }

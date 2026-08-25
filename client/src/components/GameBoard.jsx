@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Card from './Card';
 import ColorPickerModal from './ColorPickerModal';
 import GameOverModal from './GameOverModal';
+import { soundManager } from '../utils/audio';
 import {
   Flame,
   AlertTriangle,
@@ -11,8 +12,12 @@ import {
   Maximize,
   Minimize,
   Clock,
-  UserCheck,
-  Award,
+  Volume2,
+  VolumeX,
+  ArrowRight,
+  ArrowLeft,
+  CheckCircle2,
+  Zap,
 } from 'lucide-react';
 
 export default function GameBoard({
@@ -25,11 +30,19 @@ export default function GameBoard({
   onPlayAgain,
   onLeaveRoom,
   error,
+  unoToast,
 }) {
   const [selectedWildCardIndex, setSelectedWildCardIndex] = useState(null);
   const [showLogs, setShowLogs] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isMuted, setIsMuted] = useState(soundManager.muted);
   const [timeLeft, setTimeLeft] = useState(20);
+  const [localUnoError, setLocalUnoError] = useState('');
+  const [isDrawing, setIsDrawing] = useState(false);
+
+  const prevTurnIndexRef = useRef(null);
+  const prevDiscardRef = useRef(null);
+  const prevHandCountRef = useRef(0);
 
   const {
     code,
@@ -44,7 +57,14 @@ export default function GameBoard({
     winner,
     logs,
     isMyTurn,
+    pendingDrawCount = 0,
   } = gameState;
+
+  // Toggle Sound Mute
+  const handleToggleMute = () => {
+    const muted = soundManager.toggleMute();
+    setIsMuted(muted);
+  };
 
   // Toggle Browser Fullscreen
   const toggleFullscreen = () => {
@@ -66,7 +86,29 @@ export default function GameBoard({
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
-  // 20-Second Turn Countdown Timer
+  // Trigger sound when UNO toast is broadcasted
+  useEffect(() => {
+    if (unoToast) {
+      soundManager.unoSound();
+    }
+  }, [unoToast]);
+
+  // Play sound on card played / turn change
+  useEffect(() => {
+    if (topDiscard && prevDiscardRef.current && (prevDiscardRef.current.id !== topDiscard.id || prevDiscardRef.current.value !== topDiscard.value || prevDiscardRef.current.color !== topDiscard.color)) {
+      soundManager.playCardSound();
+    }
+    prevDiscardRef.current = topDiscard;
+  }, [topDiscard]);
+
+  // Play sound on winner
+  useEffect(() => {
+    if (gameState.gameState === 'FINISHED' && winner) {
+      soundManager.winSound();
+    }
+  }, [gameState.gameState, winner]);
+
+  // 20-Second Turn Countdown Timer & Tick Sound
   useEffect(() => {
     if (!turnDeadline) {
       setTimeLeft(20);
@@ -76,16 +118,37 @@ export default function GameBoard({
     const updateTimer = () => {
       const remaining = Math.max(0, Math.ceil((turnDeadline - Date.now()) / 1000));
       setTimeLeft(remaining);
+      if (remaining <= 5 && remaining > 0 && isMyTurn) {
+        soundManager.tickSound();
+      }
     };
 
     updateTimer();
     const interval = setInterval(updateTimer, 500);
     return () => clearInterval(interval);
-  }, [turnDeadline, currentTurnIndex]);
+  }, [turnDeadline, currentTurnIndex, isMyTurn]);
+
+  // Clear local UNO error after 3 seconds
+  useEffect(() => {
+    if (localUnoError) {
+      const timer = setTimeout(() => setLocalUnoError(''), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [localUnoError]);
 
   // Locate current player and relative opponents
   const myIndex = players.findIndex((p) => p.id === myId);
-  const me = players[myIndex] || { name: 'Player', hand: [], cardCount: 0 };
+  const me = players[myIndex] || { name: 'Player', hand: [], cardCount: 0, calledUno: false };
+
+  // Track hand count changes for draw animation
+  useEffect(() => {
+    if (me.hand.length > prevHandCountRef.current && prevHandCountRef.current > 0) {
+      setIsDrawing(true);
+      const timer = setTimeout(() => setIsDrawing(false), 500);
+      return () => clearTimeout(timer);
+    }
+    prevHandCountRef.current = me.hand.length;
+  }, [me.hand.length]);
 
   // Organize opponents clockwise starting from my position
   const otherPlayers = [];
@@ -96,9 +159,23 @@ export default function GameBoard({
     }
   }
 
-  // Check if a specific card in hand is a legal play
+  // Check if a specific card in hand is a legal play (enforces +4 strictly countered by +4 only)
   const isCardPlayable = (card) => {
     if (!isMyTurn || !card) return false;
+
+    // If there is an active stacked draw penalty (+2 or +4):
+    if (pendingDrawCount > 0) {
+      if (topDiscard && topDiscard.type === 'wild4') {
+        // +4 card can ONLY be countered with another +4 card!
+        return card.type === 'wild4';
+      }
+      if (topDiscard && topDiscard.type === 'draw2') {
+        // +2 card can be countered with +2 or +4!
+        return card.type === 'draw2' || card.type === 'wild4';
+      }
+      return card.type === 'draw2' || card.type === 'wild4';
+    }
+
     if (card.color === 'wild') return true;
     if (!topDiscard) return true;
     if (currentColor && card.color === currentColor) return true;
@@ -114,6 +191,8 @@ export default function GameBoard({
     const card = me.hand[cardIndex];
     if (!card) return;
 
+    soundManager.playCardSound();
+
     if (card.color === 'wild') {
       setSelectedWildCardIndex(cardIndex);
     } else {
@@ -123,18 +202,39 @@ export default function GameBoard({
 
   const handleWildColorChoice = (color) => {
     if (selectedWildCardIndex !== null) {
+      soundManager.playCardSound();
       onPlayCard(selectedWildCardIndex, color);
       setSelectedWildCardIndex(null);
     }
   };
 
+  const handleDrawCardClick = () => {
+    if (!isMyTurn) return;
+    soundManager.drawCardSound();
+    setIsDrawing(true);
+    onDrawCard();
+    setTimeout(() => setIsDrawing(false), 500);
+  };
+
+  const handleCallUnoClick = () => {
+    if (me.hand.length > 2) {
+      soundManager.penaltySound();
+      setLocalUnoError('You can only shout UNO when you have 1 or 2 cards!');
+      return;
+    }
+    soundManager.unoSound();
+    onCallUno();
+  };
+
   // Border color map for center color badge
   const colorBadgeClasses = {
-    red: 'bg-red-500 text-white shadow-red-500/50',
-    blue: 'bg-blue-500 text-white shadow-blue-500/50',
-    green: 'bg-emerald-500 text-white shadow-emerald-500/50',
-    yellow: 'bg-yellow-400 text-slate-950 shadow-yellow-400/50',
+    red: 'bg-[#E53935] text-white shadow-red-500/50',
+    blue: 'bg-[#1E88E5] text-white shadow-blue-500/50',
+    green: 'bg-[#43A047] text-white shadow-emerald-500/50',
+    yellow: 'bg-[#FBC02D] text-slate-950 shadow-yellow-400/50',
   }[currentColor] || 'bg-slate-700 text-white';
+
+  const activeError = error || localUnoError;
 
   return (
     <div className="relative min-h-screen w-full bg-slate-950 flex flex-col justify-between overflow-hidden select-none">
@@ -144,7 +244,7 @@ export default function GameBoard({
       {/* Top Header Bar */}
       <header className="relative z-20 flex items-center justify-between px-4 py-3 bg-slate-900/90 border-b border-slate-800 backdrop-blur-md">
         <div className="flex items-center gap-3">
-          <span className="font-title font-black text-2xl text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-yellow-400 to-green-400">
+          <span className="font-title font-black text-2xl text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-yellow-400 to-green-400 animate-float-slow">
             UNO!
           </span>
           <div className="px-3 py-1 bg-slate-800 border border-slate-700 rounded-lg text-xs font-mono font-bold text-yellow-400">
@@ -154,6 +254,16 @@ export default function GameBoard({
 
         {/* Header Action Controls */}
         <div className="flex items-center gap-2">
+          {/* Sound Mute Toggle */}
+          <button
+            onClick={handleToggleMute}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl text-xs font-semibold text-slate-300 transition-all"
+            title={isMuted ? 'Unmute Sound' : 'Mute Sound'}
+          >
+            {isMuted ? <VolumeX className="w-4 h-4 text-red-400" /> : <Volume2 className="w-4 h-4 text-emerald-400" />}
+            <span className="hidden sm:inline">{isMuted ? 'Muted' : 'Sound On'}</span>
+          </button>
+
           {/* Fullscreen Button */}
           <button
             onClick={toggleFullscreen}
@@ -206,16 +316,16 @@ export default function GameBoard({
       )}
 
       {/* Error Banner */}
-      {error && (
+      {activeError && (
         <div className="absolute top-16 left-1/2 -translate-x-1/2 z-30 px-6 py-2 bg-red-500/90 text-white font-bold text-sm rounded-full shadow-lg border border-red-400 animate-bounce">
-          ⚠️ {error}
+          ⚠️ {activeError}
         </div>
       )}
 
       {/* Center Table Area */}
       <main className="relative flex-1 flex flex-col items-center justify-between p-4 max-w-6xl w-full mx-auto">
         {/* Opponents Section */}
-        <div className="w-full flex justify-around items-center pt-2">
+        <div className="w-full flex justify-around items-center pt-2 mb-4">
           {otherPlayers.map((opp) => (
             <div
               key={opp.id}
@@ -225,11 +335,11 @@ export default function GameBoard({
                   : 'bg-slate-900/40 border border-slate-800'
               }`}
             >
-              {/* Turn Indicator Highlight */}
-              {opp.isCurrentTurn && (
-                <div className="absolute -top-3 px-2 py-0.5 bg-yellow-400 text-slate-950 font-black text-[10px] uppercase tracking-wider rounded-full shadow flex items-center gap-1">
-                  <Clock className="w-3 h-3 animate-spin-slow" />
-                  <span>THINKING ({timeLeft}s)</span>
+              {/* SMALL TOAST BADGE DIRECTLY ON THE SIDE OF OPPONENT WHO CALLED UNO */}
+              {unoToast && unoToast.playerId === opp.id && (
+                <div className="absolute -top-3 -right-3 z-30 px-3 py-1 bg-gradient-to-r from-red-600 via-yellow-500 to-red-600 text-white font-black text-xs rounded-full shadow-xl border border-yellow-300 animate-bounce flex items-center gap-1 backdrop-blur-md">
+                  <Flame className="w-3.5 h-3.5 text-yellow-300 fill-current animate-pulse" />
+                  <span>📢 UNO!</span>
                 </div>
               )}
 
@@ -251,81 +361,121 @@ export default function GameBoard({
                 ))}
               </div>
 
-              {/* Catch UNO button if opponent has 1 card and forgot UNO */}
+              {/* TIMER DIRECTLY UNDER OPPONENT IF IT IS THEIR TURN */}
+              {opp.isCurrentTurn && (
+                <div className={`mt-2 px-3 py-1 rounded-full font-black text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-lg border ${
+                  timeLeft <= 5
+                    ? 'bg-red-600 border-red-400 text-white animate-pulse shadow-red-600/50 scale-105'
+                    : 'bg-yellow-400 border-yellow-300 text-slate-950 shadow-yellow-400/30'
+                }`}>
+                  <Clock className="w-3.5 h-3.5" />
+                  <span>⏳ 0:{timeLeft < 10 ? `0${timeLeft}` : timeLeft}</span>
+                </div>
+              )}
+
+              {/* Catch UNO button or Called UNO Badge */}
               {opp.cardCount === 1 && !opp.calledUno && (
                 <button
-                  onClick={() => onCatchUno(opp.id)}
-                  className="mt-2 px-3 py-1 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-extrabold text-[10px] uppercase rounded-full shadow-lg border border-red-400 animate-pulse"
+                  onClick={() => {
+                    soundManager.unoSound();
+                    onCatchUno(opp.id);
+                  }}
+                  className="mt-2 px-3 py-1 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-extrabold text-[10px] uppercase rounded-full shadow-lg border border-red-400 animate-pulse cursor-pointer"
                 >
                   🚨 Catch UNO!
                 </button>
+              )}
+
+              {opp.cardCount === 1 && opp.calledUno && (
+                <div className="mt-2 px-3 py-1 bg-emerald-500 text-slate-950 font-black text-[10px] uppercase rounded-full shadow border border-emerald-300 flex items-center gap-1">
+                  <Flame className="w-3 h-3 text-yellow-300 fill-current" />
+                  <span>🔥 CALLED UNO!</span>
+                </div>
               )}
             </div>
           ))}
         </div>
 
-        {/* Center Table: Discard Pile, Draw Deck & 20s Turn Timer */}
-        <div className="relative my-auto flex flex-col items-center">
-          {/* Active Color, Direction & 20s Turn Timer */}
-          <div className="mb-4 flex items-center gap-3 bg-slate-900/90 border border-slate-800 px-6 py-2.5 rounded-full shadow-xl backdrop-blur-md">
+        {/* Center Table: Discard Pile, Draw Deck & Clean Compact Pill */}
+        <div className="relative my-auto flex flex-col items-center gap-4">
+          {/* STACKED DRAW PENALTY WARNING BANNER */}
+          {pendingDrawCount > 0 && (
+            <div className="px-5 py-1.5 bg-gradient-to-r from-red-600 via-rose-600 to-amber-500 text-white font-black text-xs uppercase tracking-wider rounded-full shadow-lg border border-yellow-300 animate-pulse flex items-center gap-2">
+              <Zap className="w-4 h-4 text-yellow-300 fill-current" />
+              <span>
+                ⚡ STACKED PENALTY: +{pendingDrawCount} CARDS! {topDiscard?.type === 'wild4' ? 'Counter with +4 ONLY or Draw' : 'Counter with +2 / +4 or Draw'}
+              </span>
+            </div>
+          )}
+
+          {/* SLEEK COLOR & PROMINENT DIRECTION PILL */}
+          <div className="flex items-center gap-4 bg-slate-900/95 border border-slate-800 px-6 py-2.5 rounded-full shadow-2xl backdrop-blur-md">
             {/* Color Badge */}
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Color:</span>
-              <span className={`px-3 py-1 rounded-full font-black text-xs uppercase shadow-md ${colorBadgeClasses}`}>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-400">COLOR:</span>
+              <span className={`px-4 py-1 rounded-full font-black text-xs uppercase shadow-md ${colorBadgeClasses}`}>
                 {currentColor || 'ANY'}
               </span>
             </div>
 
-            <div className="h-4 w-px bg-slate-700"></div>
+            <div className="h-5 w-px bg-slate-700"></div>
 
-            {/* Turn Timer Badge */}
-            <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full font-black text-xs transition-all ${
-              timeLeft <= 5
-                ? 'bg-red-600 text-white animate-pulse shadow-lg shadow-red-600/50 scale-105'
-                : 'bg-slate-800 text-yellow-400 border border-slate-700'
+            {/* LARGER PROMINENT DIRECTION BADGE */}
+            <div className={`px-4 py-1 rounded-full font-black text-xs sm:text-sm uppercase tracking-wider flex items-center gap-2.5 shadow-lg border ${
+              direction === 1
+                ? 'bg-emerald-500 border-emerald-300 text-slate-950 shadow-emerald-500/30'
+                : 'bg-amber-400 border-amber-200 text-slate-950 shadow-amber-400/30'
             }`}>
-              <Clock className="w-3.5 h-3.5" />
-              <span>0:{timeLeft < 10 ? `0${timeLeft}` : timeLeft}</span>
-            </div>
-
-            <div className="h-4 w-px bg-slate-700"></div>
-
-            {/* Direction */}
-            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-300">
               {direction === 1 ? (
-                <RotateCw className="w-4 h-4 text-emerald-400 animate-spin-slow" />
+                <>
+                  <div className="w-7 h-7 rounded-full bg-slate-950 flex items-center justify-center text-emerald-400 shadow-inner">
+                    <RotateCw className="w-4 h-4 animate-spin-slow stroke-[3]" />
+                  </div>
+                  <span className="tracking-wide">CLOCKWISE</span>
+                  <ArrowRight className="w-5 h-5 stroke-[3] animate-pulse" />
+                </>
               ) : (
-                <RotateCcw className="w-4 h-4 text-emerald-400 animate-spin-slow" />
+                <>
+                  <div className="w-7 h-7 rounded-full bg-slate-950 flex items-center justify-center text-amber-400 shadow-inner">
+                    <RotateCcw className="w-4 h-4 animate-spin-reverse-slow stroke-[3]" />
+                  </div>
+                  <span className="tracking-wide">ANTI-CLOCKWISE</span>
+                  <ArrowLeft className="w-5 h-5 stroke-[3] animate-pulse" />
+                </>
               )}
-              <span className="hidden sm:inline">{direction === 1 ? 'Clockwise' : 'Counter-CCW'}</span>
             </div>
           </div>
 
           {/* Cards Table Surface */}
           <div className="flex items-center justify-center gap-6 sm:gap-10 p-6 bg-slate-900/50 border border-slate-800/80 rounded-3xl backdrop-blur-sm shadow-2xl">
-            {/* Draw Deck */}
+            {/* Draw Deck with Lift Animation */}
             <div className="flex flex-col items-center gap-2">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Draw Deck</span>
-              <div className="relative">
+              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                {pendingDrawCount > 0 ? `Draw (${pendingDrawCount} Pending)` : 'Draw Deck'}
+              </span>
+              <div className={`relative transition-transform ${isDrawing ? 'animate-draw-card-lift' : ''}`}>
                 <Card isFaceDown size="large" />
                 <button
-                  onClick={onDrawCard}
+                  onClick={handleDrawCardClick}
                   disabled={!isMyTurn}
                   className={`absolute inset-0 rounded-2xl flex flex-col items-center justify-center font-black text-xs text-white uppercase tracking-wider transition-all bg-black/30 backdrop-blur-[2px] ${
                     isMyTurn ? 'hover:bg-red-600/30 cursor-pointer border-2 border-yellow-400' : 'cursor-not-allowed opacity-50'
                   }`}
                 >
-                  <span className="bg-slate-950/80 px-3 py-1.5 rounded-xl border border-slate-700 shadow">
-                    DRAW CARD
+                  <span className="bg-slate-950/80 px-3 py-1.5 rounded-xl border border-slate-700 shadow text-center">
+                    {pendingDrawCount > 0 ? `TAKE +${pendingDrawCount}` : 'DRAW CARD'}
                   </span>
                 </button>
               </div>
             </div>
 
-            {/* Discard Pile */}
+            {/* Discard Pile with Realistic Card Play Animation */}
             <div className="flex flex-col items-center gap-2">
               <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Discard Pile</span>
-              <div className="relative">
+              <div
+                key={topDiscard ? `${topDiscard.color}-${topDiscard.value}-${topDiscard.type}-${logs?.length}` : 'empty-discard'}
+                className="relative animate-play-card"
+              >
                 {topDiscard ? (
                   <Card card={topDiscard} size="large" disabled />
                 ) : (
@@ -336,43 +486,62 @@ export default function GameBoard({
               </div>
             </div>
           </div>
-
-          {/* Turn Alert Banner */}
-          <div className="mt-4">
-            {isMyTurn ? (
-              <div className="px-6 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-extrabold text-sm rounded-full shadow-lg shadow-emerald-950/50 animate-bounce flex items-center gap-2">
-                <span>✨ YOUR TURN! ({timeLeft}s) ✨</span>
-              </div>
-            ) : (
-              <div className="px-6 py-2 bg-slate-900 border border-slate-800 text-slate-400 font-semibold text-xs rounded-full flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5 text-yellow-400" />
-                <span>Waiting for {players[currentTurnIndex]?.name || 'opponent'} ({timeLeft}s left)...</span>
-              </div>
-            )}
-          </div>
         </div>
 
         {/* Player Bottom Bar & Hand */}
         <div className="w-full flex flex-col items-center gap-3 pb-2 z-20">
-          {/* Action Bar: Call UNO Button */}
-          <div className="flex items-center gap-4">
-            <button
-              onClick={onCallUno}
-              className={`px-8 py-3 bg-gradient-to-r from-red-600 via-rose-600 to-yellow-500 hover:from-red-500 hover:to-yellow-400 text-white font-black text-lg tracking-wider rounded-2xl shadow-xl shadow-red-950/60 border border-yellow-300 flex items-center gap-2 transition-all transform active:scale-95 ${
-                me.hand.length <= 2 ? 'animate-bounce' : 'opacity-80'
-              }`}
-            >
-              <Flame className="w-6 h-6 text-yellow-300 fill-current" />
-              <span>SHOUT UNO!</span>
-            </button>
+          {/* Active Turn Banner & TIMER DIRECTLY UNDER/ABOVE ACTIVE PLAYER */}
+          <div className="flex items-center gap-3">
+            {isMyTurn ? (
+              <div className={`px-6 py-2 rounded-full font-black text-sm text-white shadow-xl flex items-center gap-2 transition-all ${
+                timeLeft <= 5
+                  ? 'bg-red-600 border border-red-400 animate-pulse shadow-red-600/50 scale-105'
+                  : 'bg-gradient-to-r from-emerald-600 to-teal-600 border border-emerald-400 shadow-emerald-950/50'
+              }`}>
+                <Clock className="w-4 h-4 text-yellow-300" />
+                <span>✨ YOUR TURN: 0:{timeLeft < 10 ? `0${timeLeft}` : timeLeft}s ✨</span>
+              </div>
+            ) : (
+              <div className="px-5 py-1.5 bg-slate-900 border border-slate-800 text-slate-400 font-semibold text-xs rounded-full flex items-center gap-2">
+                <span>Waiting for {players[currentTurnIndex]?.name || 'opponent'}'s move...</span>
+              </div>
+            )}
           </div>
 
-          {/* Player Hand Cards Grid / Scrollable Row with Playable Highlighting */}
+          {/* Action Bar: Call UNO Button & Local Player Toast Badge */}
+          <div className="flex items-center gap-3">
+            {me.calledUno ? (
+              <div className="px-8 py-3 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 text-white font-black text-lg tracking-wider rounded-2xl shadow-xl shadow-emerald-950/60 border border-emerald-300 flex items-center gap-2 animate-pulse">
+                <CheckCircle2 className="w-6 h-6 text-yellow-300" />
+                <span>UNO CALLED!</span>
+              </div>
+            ) : (
+              <button
+                onClick={handleCallUnoClick}
+                className={`px-8 py-3 bg-gradient-to-r from-red-600 via-rose-600 to-yellow-500 hover:from-red-500 hover:to-yellow-400 text-white font-black text-lg tracking-wider rounded-2xl shadow-xl shadow-red-950/60 border border-yellow-300 flex items-center gap-2 transition-all transform active:scale-95 cursor-pointer ${
+                  me.hand.length <= 2 ? 'opacity-100' : 'opacity-70'
+                }`}
+              >
+                <Flame className="w-6 h-6 text-yellow-300 fill-current" />
+                <span>SHOUT UNO!</span>
+              </button>
+            )}
+
+            {/* SMALL TOAST BADGE BESIDE LOCAL PLAYER WHEN THEY SHOUT UNO */}
+            {unoToast && unoToast.playerId === myId && (
+              <div className="px-3 py-1.5 bg-gradient-to-r from-red-600 via-yellow-500 to-red-600 text-white font-black text-xs rounded-full shadow-lg border border-yellow-300 animate-bounce flex items-center gap-1.5">
+                <Flame className="w-4 h-4 text-yellow-300 fill-current animate-pulse" />
+                <span>📢 SHOUTED UNO!</span>
+              </div>
+            )}
+          </div>
+
+          {/* Player Hand Cards Grid / Scrollable Row with Raised Playable Cards & Slide In */}
           <div className="w-full max-w-5xl px-4 flex justify-center items-end -space-x-4 sm:-space-x-6 overflow-x-auto pb-4 pt-6">
             {me.hand.map((card, idx) => {
               const playable = isCardPlayable(card);
               return (
-                <div key={card.id || idx} className="transform transition-transform">
+                <div key={card.id || idx} className={`transform transition-transform ${isDrawing && idx === me.hand.length - 1 ? 'animate-card-slide-in' : ''}`}>
                   <Card
                     card={card}
                     onClick={() => handleCardClick(idx, playable)}

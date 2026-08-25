@@ -1,5 +1,5 @@
 import express from 'express';
-import { createServer } from 'http';
+import http from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import {
@@ -13,25 +13,24 @@ import {
 
 const app = express();
 app.use(cors());
-app.use(express.json());
 
-const httpServer = createServer(app);
-const io = new Server(httpServer, {
+const server = http.createServer(app);
+const io = new Server(server, {
   cors: {
-    origin: '*', // Allow all origins for dev flexibility
+    origin: '*', // Allow connections from Vite client
     methods: ['GET', 'POST'],
   },
 });
 
-// Store active rooms in memory
-// Map<roomCode, RoomObject>
+// In-memory Room Storage
+// roomCode -> { code, maxPlayers, hostId, gameState, players, deck, discardPile, currentColor, currentTurn, direction, turnDeadline, turnTimer, winner, logs, pendingDrawCount }
 const rooms = new Map();
 
 /**
- * Helper to generate a unique 5-character alphanumeric room code
+ * Generate a unique 5-character alphanumeric Room Code
  */
 function generateRoomCode() {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code = '';
   do {
     code = '';
@@ -43,7 +42,7 @@ function generateRoomCode() {
 }
 
 /**
- * Broadcast updated room state to all clients in a specific room
+ * Broadcast sanitized room state to each connected player in the room
  */
 function broadcastRoomState(roomCode) {
   const room = rooms.get(roomCode);
@@ -93,23 +92,46 @@ function resetTurnTimer(room) {
 }
 
 /**
- * Handle 20-second turn expiration: penalize current player 1 card & advance turn
+ * Handle 20-second turn expiration: penalize current player & advance turn
  */
 function handleTurnTimeout(room) {
   if (!room || room.gameState !== 'PLAYING') return;
 
   const currentPlayer = room.players[room.currentTurn];
   if (currentPlayer) {
-    const penaltyCard = drawCards(room.deck, room.discardPile, 1);
-    if (penaltyCard.length > 0) {
-      currentPlayer.hand.push(...penaltyCard);
+    const drawAmount = room.pendingDrawCount > 0 ? room.pendingDrawCount : 1;
+    const penaltyCards = drawCards(room.deck, room.discardPile, drawAmount);
+    if (penaltyCards.length > 0) {
+      currentPlayer.hand.push(...penaltyCards);
     }
-    addLog(room, `⏰ Time's up! ${currentPlayer.name} was penalized 1 card for taking too long.`);
+    if (currentPlayer.hand.length > 1) {
+      currentPlayer.calledUno = false;
+    }
+    if (room.pendingDrawCount > 0) {
+      addLog(room, `⏰ Time's up! ${currentPlayer.name} was penalized ${drawAmount} stacked cards.`);
+      room.pendingDrawCount = 0;
+    } else {
+      addLog(room, `⏰ Time's up! ${currentPlayer.name} was penalized 1 card for taking too long.`);
+    }
   }
 
   advanceTurn(room, 1);
   resetTurnTimer(room);
   broadcastRoomState(room.code);
+}
+
+/**
+ * Check and penalize players holding 1 card who failed to shout UNO before another turn move
+ */
+function checkAndPenalizeUncalledUno(room, actingPlayerId) {
+  room.players.forEach((p) => {
+    if (p.id !== actingPlayerId && p.hand.length === 1 && !p.calledUno) {
+      const penaltyCards = drawCards(room.deck, room.discardPile, 2);
+      p.hand.push(...penaltyCards);
+      p.calledUno = false;
+      addLog(room, `🚨 Penalty! ${p.name} failed to shout UNO before the next card was played and drew 2 penalty cards!`);
+    }
+  });
 }
 
 io.on('connection', (socket) => {
@@ -139,23 +161,24 @@ io.on('connection', (socket) => {
       players: [player],
       deck: [],
       discardPile: [],
-      currentTurn: 0,
-      direction: 1, // 1: clockwise, -1: counter-clockwise
       currentColor: null,
+      currentTurn: 0,
+      direction: 1,
+      turnDeadline: null,
+      turnTimer: null,
       winner: null,
       logs: [],
-      turnTimer: null,
-      turnDeadline: null,
+      pendingDrawCount: 0,
     };
 
     rooms.set(roomCode, newRoom);
     socket.join(roomCode);
     socket.roomCode = roomCode;
 
-    addLog(newRoom, `${player.name} created room ${roomCode} (Max ${roomMaxPlayers} players)`);
+    addLog(newRoom, `Room ${roomCode} created by ${username.trim()} (Max ${roomMaxPlayers} players).`);
     console.log(`Room created: ${roomCode} by ${username} (Max ${roomMaxPlayers} players)`);
 
-    socket.emit('room-created', { roomCode });
+    socket.emit('room-created', { roomCode, maxPlayers: roomMaxPlayers });
     broadcastRoomState(roomCode);
   });
 
@@ -164,7 +187,7 @@ io.on('connection', (socket) => {
     if (!username || !username.trim()) {
       return socket.emit('error-msg', 'Username is required.');
     }
-    if (!roomCode) {
+    if (!roomCode || !roomCode.trim()) {
       return socket.emit('error-msg', 'Room code is required.');
     }
 
@@ -172,31 +195,30 @@ io.on('connection', (socket) => {
     const room = rooms.get(upperCode);
 
     if (!room) {
-      return socket.emit('error-msg', `Room ${upperCode} does not exist.`);
+      return socket.emit('error-msg', 'Room not found! Check your code.');
     }
-
     if (room.gameState !== 'LOBBY') {
       return socket.emit('error-msg', 'Game has already started in this room.');
     }
-
     const maxCapacity = room.maxPlayers || 4;
     if (room.players.length >= maxCapacity) {
-      return socket.emit('error-msg', `Room is full (Maximum ${maxCapacity} players allowed).`);
+      return socket.emit('error-msg', `Room is full! (Max ${maxCapacity} players allowed).`);
     }
 
-    // Check if player already in room
-    const existingPlayer = room.players.find((p) => p.id === socket.id);
-    if (!existingPlayer) {
-      const newPlayer = {
-        id: socket.id,
-        name: username.trim(),
-        hand: [],
-        isHost: false,
-        calledUno: false,
-      };
-      room.players.push(newPlayer);
+    const existingPlayer = room.players.find((p) => p.name.toLowerCase() === username.trim().toLowerCase());
+    if (existingPlayer) {
+      return socket.emit('error-msg', 'Username is already taken in this room.');
     }
 
+    const player = {
+      id: socket.id,
+      name: username.trim(),
+      hand: [],
+      isHost: false,
+      calledUno: false,
+    };
+
+    room.players.push(player);
     socket.join(upperCode);
     socket.roomCode = upperCode;
 
@@ -238,6 +260,7 @@ io.on('connection', (socket) => {
     room.direction = 1;
     room.gameState = 'PLAYING';
     room.winner = null;
+    room.pendingDrawCount = 0;
 
     addLog(room, `Game started! Top card is ${initialCard.color.toUpperCase()} ${initialCard.value}`);
     resetTurnTimer(room);
@@ -261,15 +284,22 @@ io.on('connection', (socket) => {
     const card = currentPlayer.hand[cardIndex];
     const topDiscard = room.discardPile[room.discardPile.length - 1];
 
-    if (!isValidMove(card, topDiscard, room.currentColor)) {
+    // Check move validity with Stacking Rules
+    if (!isValidMove(card, topDiscard, room.currentColor, room.pendingDrawCount || 0)) {
+      if (room.pendingDrawCount > 0) {
+        return socket.emit('error-msg', `Active stacked draw penalty (+${room.pendingDrawCount})! Counter with a +2 or +4 card, or click Draw Card to take the cards.`);
+      }
       return socket.emit('error-msg', 'Invalid card play! Card must match color, value, or be a Wild card.');
     }
+
+    // Rule: Penalize any other player holding 1 card who failed to shout UNO before this move!
+    checkAndPenalizeUncalledUno(room, currentPlayer.id);
 
     // Remove played card from player hand
     currentPlayer.hand.splice(cardIndex, 1);
     room.discardPile.push(card);
 
-    addLog(room, `${currentPlayer.name} played ${card.color !== 'wild' ? card.color.toUpperCase() : ''} ${card.value}`);
+    addLog(room, `${currentPlayer.name} played ${card.color !== 'wild' ? card.color.toUpperCase() : ''} ${card.value || card.type}`);
 
     // Check WIN condition
     if (currentPlayer.hand.length === 0) {
@@ -281,9 +311,9 @@ io.on('connection', (socket) => {
       return;
     }
 
-    // UNO call check: if player has 1 card left and didn't call UNO beforehand
+    // UNO check: if player reaches 1 card without calling UNO
     if (currentPlayer.hand.length === 1 && !currentPlayer.calledUno) {
-      addLog(room, `⚠️ ${currentPlayer.name} has 1 card remaining but did NOT call UNO!`);
+      addLog(room, `⚠️ ${currentPlayer.name} has 1 card remaining! (Shout UNO before the next turn!)`);
     }
 
     // Apply special card effects
@@ -298,32 +328,26 @@ io.on('connection', (socket) => {
       addLog(room, `🚫 ${skippedPlayer.name}'s turn was skipped!`);
     } else if (card.type === 'reverse') {
       room.currentColor = card.color;
+      room.direction *= -1;
       if (room.players.length === 2) {
         skipSteps = 2; // In 2 player UNO, Reverse acts like Skip
-        addLog(room, `🔄 Reverse played! Turn skips back.`);
+        addLog(room, `🔄 Reverse played! Direction reversed & turn skipped.`);
       } else {
-        room.direction *= -1;
         addLog(room, `🔄 Direction reversed!`);
       }
     } else if (card.type === 'draw2') {
       room.currentColor = card.color;
-      const targetIdx = (room.currentTurn + room.direction + room.players.length) % room.players.length;
-      const targetPlayer = room.players[targetIdx];
-      const drawn = drawCards(room.deck, room.discardPile, 2);
-      targetPlayer.hand.push(...drawn);
-      skipSteps = 2; // Next player receives cards and misses turn
-      addLog(room, `+2! ${targetPlayer.name} drew 2 cards and missed their turn.`);
+      room.pendingDrawCount = (room.pendingDrawCount || 0) + 2;
+      skipSteps = 1; // Move turn to next player so they can counter stack or draw!
+      addLog(room, `⚡ +2 played! Stacked draw penalty is now +${room.pendingDrawCount} cards!`);
     } else if (card.type === 'wild') {
       room.currentColor = chosenColor || 'red';
       addLog(room, `🌈 Wild played! Color changed to ${room.currentColor.toUpperCase()}`);
     } else if (card.type === 'wild4') {
       room.currentColor = chosenColor || 'red';
-      const targetIdx = (room.currentTurn + room.direction + room.players.length) % room.players.length;
-      const targetPlayer = room.players[targetIdx];
-      const drawn = drawCards(room.deck, room.discardPile, 4);
-      targetPlayer.hand.push(...drawn);
-      skipSteps = 2; // Target draws 4 and misses turn
-      addLog(room, `+4! ${targetPlayer.name} drew 4 cards and missed their turn. Color is ${room.currentColor.toUpperCase()}`);
+      room.pendingDrawCount = (room.pendingDrawCount || 0) + 4;
+      skipSteps = 1; // Move turn to next player so they can counter stack or draw!
+      addLog(room, `⚡ +4 Wild played! Color changed to ${room.currentColor.toUpperCase()}. Stacked draw penalty is now +${room.pendingDrawCount} cards!`);
     }
 
     // Advance turn
@@ -342,10 +366,23 @@ io.on('connection', (socket) => {
       return socket.emit('error-msg', "It's not your turn!");
     }
 
-    const drawn = drawCards(room.deck, room.discardPile, 1);
+    // Rule: Penalize any other player holding 1 card who failed to shout UNO before this turn move!
+    checkAndPenalizeUncalledUno(room, currentPlayer.id);
+
+    const drawCount = room.pendingDrawCount > 0 ? room.pendingDrawCount : 1;
+    const drawn = drawCards(room.deck, room.discardPile, drawCount);
+
     if (drawn.length > 0) {
       currentPlayer.hand.push(...drawn);
-      addLog(room, `${currentPlayer.name} drew a card.`);
+      if (currentPlayer.hand.length > 1) {
+        currentPlayer.calledUno = false;
+      }
+      if (room.pendingDrawCount > 0) {
+        addLog(room, `⚡ ${currentPlayer.name} could not counter and drew ${drawCount} stacked penalty cards!`);
+        room.pendingDrawCount = 0;
+      } else {
+        addLog(room, `${currentPlayer.name} drew a card.`);
+      }
     }
 
     // Advance turn after drawing
@@ -360,11 +397,18 @@ io.on('connection', (socket) => {
     if (!room || room.gameState !== 'PLAYING') return;
 
     const player = room.players.find((p) => p.id === socket.id);
-    if (player) {
-      player.calledUno = true;
-      addLog(room, `📢 ${player.name} CALLED UNO!`);
-      broadcastRoomState(roomCode);
+    if (!player) return;
+
+    if (player.hand.length > 2) {
+      return socket.emit('error-msg', 'You can only shout UNO when you have 1 or 2 cards!');
     }
+
+    player.calledUno = true;
+    addLog(room, `📢 ${player.name} SHOUTED UNO! 🔥`);
+
+    // Broadcast toast alert with playerId to all players in the room
+    io.to(roomCode).emit('uno-shouted-toast', { playerId: player.id, playerName: player.name });
+    broadcastRoomState(roomCode);
   });
 
   // 7. CATCH UNO (Penalty for someone who forgot to call UNO)
@@ -375,13 +419,20 @@ io.on('connection', (socket) => {
     const targetPlayer = room.players.find((p) => p.id === targetPlayerId);
     const callerPlayer = room.players.find((p) => p.id === socket.id);
 
-    if (targetPlayer && targetPlayer.hand.length === 1 && !targetPlayer.calledUno) {
+    if (!targetPlayer || !callerPlayer) return;
+
+    if (targetPlayer.id === socket.id) {
+      return socket.emit('error-msg', 'You cannot catch yourself!');
+    }
+
+    if (targetPlayer.hand.length === 1 && !targetPlayer.calledUno) {
       const penaltyCards = drawCards(room.deck, room.discardPile, 2);
       targetPlayer.hand.push(...penaltyCards);
+      targetPlayer.calledUno = false;
       addLog(room, `🚨 ${callerPlayer.name} caught ${targetPlayer.name}! 2 penalty cards drawn.`);
       broadcastRoomState(roomCode);
     } else {
-      socket.emit('error-msg', 'Player cannot be caught for UNO penalty right now.');
+      socket.emit('error-msg', `${targetPlayer.name} cannot be caught for UNO penalty right now.`);
     }
   });
 
@@ -398,6 +449,7 @@ io.on('connection', (socket) => {
     room.winner = null;
     room.deck = [];
     room.discardPile = [];
+    room.pendingDrawCount = 0;
     room.players.forEach((p) => {
       p.hand = [];
       p.calledUno = false;
@@ -458,6 +510,6 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 5000;
-httpServer.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`🚀 UNO Server running on http://localhost:${PORT}`);
 });

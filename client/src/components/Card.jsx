@@ -2,16 +2,17 @@ import React from 'react';
 import { Ban, RotateCw, Sparkles } from 'lucide-react';
 
 export default function Card({ card, isFaceDown = false, onClick, disabled = false, isPlayable = false, size = 'normal' }) {
+  // Opaque Card Back (Official UNO style)
   if (isFaceDown) {
     return (
       <div
-        className={`relative rounded-xl border-2 border-slate-700 bg-slate-900 shadow-md flex items-center justify-center select-none ${
-          size === 'small' ? 'w-10 h-16 sm:w-12 sm:h-20' : 'w-16 h-24 sm:w-20 sm:h-32'
+        className={`relative rounded-2xl border-4 border-white bg-[#0f172a] shadow-xl flex items-center justify-center select-none overflow-hidden ${
+          size === 'small' ? 'w-12 h-20' : size === 'large' ? 'w-24 h-36 sm:w-28 sm:h-44' : 'w-16 h-24 sm:w-20 sm:h-32'
         }`}
       >
-        <div className="w-5/6 h-5/6 rounded-lg bg-gradient-to-br from-red-600 via-yellow-500 to-blue-600 p-0.5 flex items-center justify-center">
-          <div className="w-full h-full bg-slate-950 rounded-[6px] flex items-center justify-center">
-            <span className="font-title font-black text-xs sm:text-sm text-yellow-400 -rotate-45 tracking-tighter">
+        <div className="w-5/6 h-5/6 rounded-xl bg-[#E53935] p-1 flex items-center justify-center">
+          <div className="w-full h-full bg-slate-950 rounded-lg flex items-center justify-center transform -rotate-25 shadow-inner">
+            <span className="font-title font-black text-sm sm:text-base text-[#FBC02D] tracking-tighter drop-shadow-md">
               UNO
             </span>
           </div>
@@ -24,37 +25,36 @@ export default function Card({ card, isFaceDown = false, onClick, disabled = fal
 
   const { color, type, value } = card;
 
-  // Background Styles based on Color
-  let bgStyle = 'bg-slate-800';
-  let textColor = 'text-white';
-  let ovalBg = 'bg-white';
+  // Authentic Solid Card Colors (100% Opaque, No Transparency)
+  let bgClass = 'bg-slate-800 border-white';
+  let symbolColor = 'text-white';
   let ovalTextColor = 'text-slate-950';
 
   if (color === 'red') {
-    bgStyle = 'bg-gradient-to-br from-red-500 to-red-600 border-red-400';
-    textColor = 'text-white';
-    ovalTextColor = 'text-red-600';
+    bgClass = 'bg-[#E53935] border-white text-white';
+    symbolColor = 'text-white';
+    ovalTextColor = 'text-[#E53935]';
   } else if (color === 'blue') {
-    bgStyle = 'bg-gradient-to-br from-blue-500 to-blue-600 border-blue-400';
-    textColor = 'text-white';
-    ovalTextColor = 'text-blue-600';
+    bgClass = 'bg-[#1E88E5] border-white text-white';
+    symbolColor = 'text-white';
+    ovalTextColor = 'text-[#1E88E5]';
   } else if (color === 'green') {
-    bgStyle = 'bg-gradient-to-br from-emerald-500 to-emerald-600 border-emerald-400';
-    textColor = 'text-white';
-    ovalTextColor = 'text-emerald-600';
+    bgClass = 'bg-[#43A047] border-white text-white';
+    symbolColor = 'text-white';
+    ovalTextColor = 'text-[#43A047]';
   } else if (color === 'yellow') {
-    bgStyle = 'bg-gradient-to-br from-yellow-400 to-amber-500 border-yellow-300';
-    textColor = 'text-slate-950';
-    ovalTextColor = 'text-amber-500';
+    bgClass = 'bg-[#FBC02D] border-white text-slate-950';
+    symbolColor = 'text-slate-950';
+    ovalTextColor = 'text-[#D8A000]';
   } else if (color === 'wild') {
-    bgStyle = 'bg-gradient-to-br from-red-500 via-yellow-400 to-blue-600 border-yellow-300';
-    textColor = 'text-white';
-    ovalTextColor = 'text-slate-950';
+    bgClass = 'bg-[#1A1A1A] border-white text-white';
+    symbolColor = 'text-white';
+    ovalTextColor = 'text-white';
   }
 
   // Symbol / Value renderer helper
   const renderSymbol = (isCorner = false) => {
-    const iconSize = isCorner ? (size === 'small' ? 'w-3 h-3' : 'w-3.5 h-3.5') : (size === 'small' ? 'w-5 h-5' : 'w-7 h-7');
+    const iconSize = isCorner ? (size === 'small' ? 'w-3 h-3' : 'w-4 h-4') : (size === 'small' ? 'w-5 h-5' : 'w-8 h-8');
 
     if (type === 'skip') {
       return <Ban className={iconSize} />;
@@ -63,15 +63,15 @@ export default function Card({ card, isFaceDown = false, onClick, disabled = fal
       return <RotateCw className={iconSize} />;
     }
     if (type === 'draw2') {
-      return <span className={isCorner ? 'text-[10px] font-extrabold' : 'font-black text-lg'}>+2</span>;
+      return <span className={isCorner ? 'text-[11px] font-black' : 'font-black text-xl sm:text-2xl'}>+2</span>;
     }
     if (type === 'wild') {
       return <Sparkles className={iconSize} />;
     }
     if (type === 'wild4') {
-      return <span className={isCorner ? 'text-[10px] font-extrabold' : 'font-black text-lg'}>+4</span>;
+      return <span className={isCorner ? 'text-[11px] font-black' : 'font-black text-xl sm:text-2xl'}>+4</span>;
     }
-    return <span className={isCorner ? 'text-[11px] font-extrabold' : 'font-black text-2xl sm:text-3xl'}>{value}</span>;
+    return <span className={isCorner ? 'text-xs font-black' : 'font-black text-3xl sm:text-4xl'}>{value}</span>;
   };
 
   const dimensionClasses =
@@ -86,32 +86,46 @@ export default function Card({ card, isFaceDown = false, onClick, disabled = fal
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`relative ${dimensionClasses} rounded-2xl border-2 shadow-xl flex flex-col justify-between p-1.5 sm:p-2 select-none transition-all duration-200 transform ${bgStyle} ${
+      className={`relative ${dimensionClasses} rounded-2xl border-4 shadow-2xl flex flex-col justify-between p-1.5 sm:p-2 select-none transition-all duration-200 transform overflow-hidden ${bgClass} ${
         isPlayable
-          ? '-translate-y-4 sm:-translate-y-5 hover:-translate-y-8 cursor-pointer shadow-2xl z-30 opacity-100'
+          ? '-translate-y-5 sm:-translate-y-6 hover:-translate-y-10 cursor-pointer shadow-black/80 z-30'
           : disabled
-          ? 'translate-y-0 opacity-50 grayscale-[30%] cursor-not-allowed pointer-events-none shadow-md'
+          ? 'translate-y-0 brightness-75 grayscale-[20%] cursor-not-allowed pointer-events-none shadow-md'
           : 'hover:-translate-y-1'
       }`}
     >
-      {/* Top Left Corner */}
-      <div className={`flex items-center gap-0.5 font-bold ${textColor}`}>
+      {/* Top Left Corner Symbol */}
+      <div className={`flex items-center gap-0.5 font-black ${symbolColor}`}>
         {renderSymbol(true)}
       </div>
 
-      {/* Center Oval */}
+      {/* Authentic Center Tilted White Oval */}
       <div className="absolute inset-0 flex items-center justify-center p-2 pointer-events-none">
-        <div
-          className={`w-full h-3/4 ${ovalBg} rounded-[100%] shadow-inner flex items-center justify-center transform -rotate-12 border border-black/10`}
-        >
-          <div className={`font-black ${ovalTextColor} transform rotate-12 flex items-center justify-center`}>
-            {renderSymbol(false)}
+        {color === 'wild' ? (
+          /* Official Wild Card 4-Color Segment Wheel inside White Oval */
+          <div className="w-full h-3/4 bg-white rounded-[100%] border-2 border-black/20 flex items-center justify-center transform -rotate-25 overflow-hidden shadow-inner p-1">
+            <div className="w-full h-full rounded-[100%] grid grid-cols-2 grid-rows-2 overflow-hidden border border-black/30">
+              <div className="bg-[#E53935]"></div>
+              <div className="bg-[#1E88E5]"></div>
+              <div className="bg-[#FBC02D]"></div>
+              <div className="bg-[#43A047]"></div>
+            </div>
+            <div className="absolute font-black text-white drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)] transform rotate-25">
+              {renderSymbol(false)}
+            </div>
           </div>
-        </div>
+        ) : (
+          /* Standard Card White Oval */
+          <div className="w-full h-3/4 bg-white rounded-[100%] border-2 border-black/10 shadow-inner flex items-center justify-center transform -rotate-25">
+            <div className={`font-black ${ovalTextColor} transform rotate-25 flex items-center justify-center drop-shadow-sm`}>
+              {renderSymbol(false)}
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Bottom Right Corner */}
-      <div className={`flex items-center justify-end font-bold ${textColor} rotate-180`}>
+      {/* Bottom Right Corner Symbol */}
+      <div className={`flex items-center justify-end font-black ${symbolColor} rotate-180`}>
         {renderSymbol(true)}
       </div>
     </button>

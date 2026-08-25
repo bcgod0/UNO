@@ -9,6 +9,7 @@ export default function App() {
   const [roomCode, setRoomCode] = useState('');
   const [gameState, setGameState] = useState(null);
   const [error, setError] = useState(null);
+  const [unoToast, setUnoToast] = useState(null);
 
   useEffect(() => {
     // Socket Event Listeners
@@ -31,6 +32,11 @@ export default function App() {
       setError(null);
     });
 
+    socket.on('uno-shouted-toast', ({ playerId, playerName }) => {
+      setUnoToast({ playerId, playerName });
+      setTimeout(() => setUnoToast(null), 3500);
+    });
+
     socket.on('error-msg', (msg) => {
       setError(msg);
       setTimeout(() => setError(null), 4000);
@@ -45,6 +51,7 @@ export default function App() {
       socket.off('room-created');
       socket.off('room-joined');
       socket.off('game-state-updated');
+      socket.off('uno-shouted-toast');
       socket.off('error-msg');
       socket.off('disconnect');
     };
@@ -119,6 +126,7 @@ export default function App() {
       onPlayAgain={handlePlayAgain}
       onLeaveRoom={handleLeaveRoom}
       error={error}
+      unoToast={unoToast}
     />
   );
 }
