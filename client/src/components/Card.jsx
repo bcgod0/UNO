@@ -6,13 +6,13 @@ export default function Card({ card, isFaceDown = false, onClick, disabled = fal
   if (isFaceDown) {
     return (
       <div
-        className={`relative rounded-xl sm:rounded-2xl border-2 sm:border-4 border-white bg-[#0f172a] shadow-xl flex items-center justify-center select-none overflow-hidden ${
-          size === 'small' ? 'w-9 h-14 xs:w-11 xs:h-18 sm:w-12 sm:h-20 card-small-landscape' : size === 'large' ? 'w-20 h-30 xs:w-24 xs:h-36 sm:w-28 sm:h-44 card-large-landscape' : 'w-13 h-20 xs:w-16 xs:h-24 sm:w-20 sm:h-32 card-normal-landscape'
+        className={`relative rounded-lg sm:rounded-2xl border-2 sm:border-4 border-white bg-[#0f172a] shadow-xl flex items-center justify-center select-none overflow-hidden ${
+          size === 'small' ? 'w-7 h-10 xs:w-8 xs:h-12 sm:w-12 sm:h-20 card-small-landscape' : size === 'large' ? 'w-14 h-22 xs:w-16 xs:h-24 sm:w-28 sm:h-44 card-large-landscape' : 'w-10 h-15 xs:w-12 xs:h-18 sm:w-20 sm:h-32 card-normal-landscape'
         }`}
       >
-        <div className="w-5/6 h-5/6 rounded-lg sm:rounded-xl bg-[#E53935] p-0.5 sm:p-1 flex items-center justify-center">
+        <div className="w-5/6 h-5/6 rounded sm:rounded-xl bg-[#E53935] p-0.5 sm:p-1 flex items-center justify-center">
           <div className="w-full h-full bg-slate-950 rounded flex items-center justify-center transform -rotate-25 shadow-inner">
-            <span className="font-title font-black text-[10px] xs:text-xs sm:text-base text-[#FBC02D] tracking-tighter drop-shadow-md">
+            <span className="font-title font-black text-[9px] xs:text-xs sm:text-base text-[#FBC02D] tracking-tighter drop-shadow-md">
               UNO
             </span>
           </div>
@@ -56,7 +56,7 @@ export default function Card({ card, isFaceDown = false, onClick, disabled = fal
   const renderSymbol = (isCorner = false) => {
     const iconSize = isCorner
       ? size === 'small' ? 'w-2 h-2 sm:w-3 sm:h-3' : 'w-2.5 h-2.5 sm:w-4 sm:h-4'
-      : size === 'small' ? 'w-4 h-4 sm:w-5 sm:h-5' : size === 'large' ? 'w-6 h-6 sm:w-8 sm:h-8' : 'w-5 h-5 sm:w-7 sm:h-7';
+      : size === 'small' ? 'w-3 h-3 sm:w-5 sm:h-5' : size === 'large' ? 'w-5 h-5 sm:w-8 sm:h-8' : 'w-4 h-4 sm:w-7 sm:h-7';
 
     if (type === 'skip') {
       return <Ban className={iconSize} />;
@@ -65,23 +65,23 @@ export default function Card({ card, isFaceDown = false, onClick, disabled = fal
       return <RotateCw className={iconSize} />;
     }
     if (type === 'draw2') {
-      return <span className={isCorner ? 'text-[9px] sm:text-[11px] font-black' : 'font-black text-base sm:text-2xl'}>+2</span>;
+      return <span className={isCorner ? 'text-[8px] sm:text-[11px] font-black' : 'font-black text-sm sm:text-2xl'}>+2</span>;
     }
     if (type === 'wild') {
       return <Sparkles className={iconSize} />;
     }
     if (type === 'wild4') {
-      return <span className={isCorner ? 'text-[9px] sm:text-[11px] font-black' : 'font-black text-base sm:text-2xl'}>+4</span>;
+      return <span className={isCorner ? 'text-[8px] sm:text-[11px] font-black' : 'font-black text-sm sm:text-2xl'}>+4</span>;
     }
-    return <span className={isCorner ? 'text-[10px] sm:text-xs font-black' : 'font-black text-xl sm:text-4xl'}>{value}</span>;
+    return <span className={isCorner ? 'text-[9px] sm:text-xs font-black' : 'font-black text-lg sm:text-4xl'}>{value}</span>;
   };
 
   const dimensionClasses =
     size === 'small'
-      ? 'w-9 h-14 xs:w-11 xs:h-18 sm:w-12 sm:h-20 text-[9px] sm:text-xs card-small-landscape'
+      ? 'w-7 h-10 xs:w-8 xs:h-12 sm:w-12 sm:h-20 text-[8px] sm:text-xs card-small-landscape'
       : size === 'large'
-      ? 'w-20 h-30 xs:w-24 xs:h-36 sm:w-28 sm:h-44 text-sm sm:text-base card-large-landscape'
-      : 'w-13 h-20 xs:w-16 xs:h-24 sm:w-20 sm:h-32 text-xs sm:text-sm card-normal-landscape';
+      ? 'w-14 h-22 xs:w-16 xs:h-24 sm:w-28 sm:h-44 text-xs sm:text-base card-large-landscape'
+      : 'w-10 h-15 xs:w-12 xs:h-18 sm:w-20 sm:h-32 text-[10px] sm:text-sm card-normal-landscape';
 
   return (
     <button

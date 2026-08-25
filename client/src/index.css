@@ -188,17 +188,17 @@
   }
 
   .card-large-landscape {
-    width: 4.75rem !important;
-    height: 7rem !important;
+    width: 3.8rem !important;
+    height: 5.6rem !important;
   }
 
   .card-normal-landscape {
-    width: 3.5rem !important;
-    height: 5.25rem !important;
+    width: 2.8rem !important;
+    height: 4.2rem !important;
   }
 
   .card-small-landscape {
-    width: 2.75rem !important;
-    height: 4rem !important;
+    width: 2rem !important;
+    height: 3rem !important;
   }
 }
