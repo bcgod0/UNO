@@ -14,6 +14,10 @@ import {
 const app = express();
 app.use(cors());
 
+app.get('/', (req, res) => {
+  res.send('🚀 UNO Game Server is live and running!');
+});
+
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { PlusCircle, LogIn, Sparkles, Users, Layers, ShieldCheck } from 'lucide-react';
 
-export default function Home({ onCreateRoom, onJoinRoom, error }) {
+export default function Home({ onCreateRoom, onJoinRoom, error, isConnected }) {
   const [username, setUsername] = useState('');
   const [maxPlayers, setMaxPlayers] = useState(4);
   const [roomCodeInput, setRoomCodeInput] = useState('');
@@ -44,6 +44,13 @@ export default function Home({ onCreateRoom, onJoinRoom, error }) {
           </div>
           <p className="text-slate-400 text-sm font-medium">Real-time Multiplayer Experience</p>
         </div>
+
+        {/* Server Connection Status Banner */}
+        {!isConnected && (
+          <div className="w-full mb-6 p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-amber-400 text-xs text-center font-medium animate-pulse">
+            ⏳ Connecting to server... (Render free tier may take ~30s to wake up on first visit)
+          </div>
+        )}
 
         {/* Error Alert */}
         {error && (

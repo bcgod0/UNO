@@ -10,10 +10,12 @@ export default function App() {
   const [gameState, setGameState] = useState(null);
   const [error, setError] = useState(null);
   const [unoToast, setUnoToast] = useState(null);
+  const [isConnected, setIsConnected] = useState(socket.connected);
 
   useEffect(() => {
     // Socket Event Listeners
     socket.on('connect', () => {
+      setIsConnected(true);
       console.log('Connected to socket server:', socket.id);
     });
 
@@ -43,6 +45,7 @@ export default function App() {
     });
 
     socket.on('disconnect', () => {
+      setIsConnected(false);
       console.log('Disconnected from socket server');
     });
 
@@ -101,7 +104,7 @@ export default function App() {
 
   // Render view based on game state
   if (!gameState) {
-    return <Home onCreateRoom={handleCreateRoom} onJoinRoom={handleJoinRoom} error={error} />;
+    return <Home onCreateRoom={handleCreateRoom} onJoinRoom={handleJoinRoom} error={error} isConnected={isConnected} />;
   }
 
   if (gameState.gameState === 'LOBBY') {
