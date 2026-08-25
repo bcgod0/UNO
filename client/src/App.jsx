@@ -112,6 +112,7 @@ export default function App() {
       <Lobby
         gameState={gameState}
         onStartGame={handleStartGame}
+        onLeaveRoom={handleLeaveRoom}
         myId={socket.id}
         error={error}
       />

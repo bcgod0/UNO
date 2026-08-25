@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Crown, Copy, Check, Users, Play, ShieldAlert, User } from 'lucide-react';
+import { Crown, Copy, Check, Users, Play, ShieldAlert, User, LogOut } from 'lucide-react';
 
-export default function Lobby({ gameState, onStartGame, myId, error }) {
+export default function Lobby({ gameState, onStartGame, onLeaveRoom, myId, error }) {
   const [copied, setCopied] = useState(false);
 
   const { code, players, hostId, maxPlayers = 4 } = gameState;
@@ -19,7 +19,7 @@ export default function Lobby({ gameState, onStartGame, myId, error }) {
       {/* Glow Effects */}
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-96 h-96 bg-red-600/15 rounded-full blur-3xl pointer-events-none"></div>
 
-      <div className="relative z-10 w-full max-w-xl bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-3xl p-8 shadow-2xl shadow-black">
+      <div className="relative z-10 w-full max-w-xl bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-3xl p-4 sm:p-8 max-h-[92vh] overflow-y-auto shadow-2xl shadow-black">
         {/* Header with Room Code */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pb-6 mb-6 border-b border-slate-800">
           <div>
@@ -30,13 +30,24 @@ export default function Lobby({ gameState, onStartGame, myId, error }) {
             </h1>
           </div>
 
-          <button
-            onClick={copyRoomCode}
-            className="flex items-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 active:scale-95 border border-slate-700/60 rounded-xl text-xs font-bold text-slate-200 transition-all"
-          >
-            {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-indigo-400" />}
-            <span>{copied ? 'Code Copied!' : 'Copy Code'}</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={copyRoomCode}
+              className="flex items-center gap-2 px-3 py-2 bg-slate-800 hover:bg-slate-700 active:scale-95 border border-slate-700/60 rounded-xl text-xs font-bold text-slate-200 transition-all"
+            >
+              {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4 text-indigo-400" />}
+              <span>{copied ? 'Copied!' : 'Copy Code'}</span>
+            </button>
+
+            <button
+              onClick={onLeaveRoom}
+              className="flex items-center gap-1.5 px-3 py-2 bg-red-950/60 hover:bg-red-900/80 active:scale-95 border border-red-800/80 rounded-xl text-xs font-bold text-red-300 hover:text-white transition-all cursor-pointer"
+              title="Leave Room"
+            >
+              <LogOut className="w-4 h-4 text-red-400" />
+              <span>Leave</span>
+            </button>
+          </div>
         </div>
 
         {/* Error Alert */}

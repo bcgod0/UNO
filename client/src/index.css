@@ -135,3 +135,70 @@
 .animate-float-slow {
   animation: floatSlow 4s ease-in-out infinite;
 }
+
+/* Mobile Horizontal (Landscape Phone) Layout Styles - Max Height 520px */
+/* DOES NOT APPLY TO DESKTOP (Desktop height is > 520px) */
+@media (orientation: landscape) and (max-height: 520px) {
+  .mobile-landscape-header {
+    padding-top: 0.25rem !important;
+    padding-bottom: 0.25rem !important;
+    height: 2.5rem !important;
+  }
+
+  .mobile-landscape-opponents {
+    margin-bottom: 0.25rem !important;
+    padding-top: 0.25rem !important;
+    max-height: 3.8rem !important;
+  }
+
+  .mobile-landscape-table-surface {
+    padding: 0.35rem 1rem !important;
+    gap: 1.5rem !important;
+  }
+
+  .mobile-landscape-pill {
+    padding-top: 0.15rem !important;
+    padding-bottom: 0.15rem !important;
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+    font-size: 0.7rem !important;
+  }
+
+  .mobile-landscape-turn-banner {
+    padding-top: 0.2rem !important;
+    padding-bottom: 0.2rem !important;
+    font-size: 0.75rem !important;
+  }
+
+  .mobile-landscape-action-bar {
+    gap: 0.5rem !important;
+  }
+
+  .mobile-landscape-uno-btn {
+    padding-top: 0.35rem !important;
+    padding-bottom: 0.35rem !important;
+    padding-left: 1.25rem !important;
+    padding-right: 1.25rem !important;
+    font-size: 0.875rem !important;
+  }
+
+  .mobile-landscape-hand-container {
+    padding-top: 0.5rem !important;
+    padding-bottom: 0.25rem !important;
+  }
+
+  .card-large-landscape {
+    width: 4.75rem !important;
+    height: 7rem !important;
+  }
+
+  .card-normal-landscape {
+    width: 3.5rem !important;
+    height: 5.25rem !important;
+  }
+
+  .card-small-landscape {
+    width: 2.75rem !important;
+    height: 4rem !important;
+  }
+}

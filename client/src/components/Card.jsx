@@ -7,7 +7,7 @@ export default function Card({ card, isFaceDown = false, onClick, disabled = fal
     return (
       <div
         className={`relative rounded-xl sm:rounded-2xl border-2 sm:border-4 border-white bg-[#0f172a] shadow-xl flex items-center justify-center select-none overflow-hidden ${
-          size === 'small' ? 'w-9 h-14 xs:w-11 xs:h-18 sm:w-12 sm:h-20' : size === 'large' ? 'w-20 h-30 xs:w-24 xs:h-36 sm:w-28 sm:h-44' : 'w-13 h-20 xs:w-16 xs:h-24 sm:w-20 sm:h-32'
+          size === 'small' ? 'w-9 h-14 xs:w-11 xs:h-18 sm:w-12 sm:h-20 card-small-landscape' : size === 'large' ? 'w-20 h-30 xs:w-24 xs:h-36 sm:w-28 sm:h-44 card-large-landscape' : 'w-13 h-20 xs:w-16 xs:h-24 sm:w-20 sm:h-32 card-normal-landscape'
         }`}
       >
         <div className="w-5/6 h-5/6 rounded-lg sm:rounded-xl bg-[#E53935] p-0.5 sm:p-1 flex items-center justify-center">
@@ -78,10 +78,10 @@ export default function Card({ card, isFaceDown = false, onClick, disabled = fal
 
   const dimensionClasses =
     size === 'small'
-      ? 'w-9 h-14 xs:w-11 xs:h-18 sm:w-12 sm:h-20 text-[9px] sm:text-xs'
+      ? 'w-9 h-14 xs:w-11 xs:h-18 sm:w-12 sm:h-20 text-[9px] sm:text-xs card-small-landscape'
       : size === 'large'
-      ? 'w-20 h-30 xs:w-24 xs:h-36 sm:w-28 sm:h-44 text-sm sm:text-base'
-      : 'w-13 h-20 xs:w-16 xs:h-24 sm:w-20 sm:h-32 text-xs sm:text-sm';
+      ? 'w-20 h-30 xs:w-24 xs:h-36 sm:w-28 sm:h-44 text-sm sm:text-base card-large-landscape'
+      : 'w-13 h-20 xs:w-16 xs:h-24 sm:w-20 sm:h-32 text-xs sm:text-sm card-normal-landscape';
 
   return (
     <button

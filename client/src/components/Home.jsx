@@ -27,7 +27,7 @@ export default function Home({ onCreateRoom, onJoinRoom, error, isConnected }) {
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-yellow-500/10 rounded-full blur-3xl pointer-events-none"></div>
 
       {/* Main Container Card */}
-      <div className="relative z-10 w-full max-w-md bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-3xl p-8 shadow-2xl shadow-black/80 flex flex-col items-center">
+      <div className="relative z-10 w-full max-w-md bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-3xl p-4 sm:p-8 max-h-[92vh] overflow-y-auto shadow-2xl shadow-black/80 flex flex-col items-center">
         {/* UNO Logo / Header */}
         <div className="flex flex-col items-center mb-8">
           <div className="relative mb-2">

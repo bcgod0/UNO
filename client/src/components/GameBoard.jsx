@@ -18,6 +18,7 @@ import {
   ArrowLeft,
   CheckCircle2,
   Zap,
+  LogOut,
 } from 'lucide-react';
 
 export default function GameBoard({
@@ -242,7 +243,7 @@ export default function GameBoard({
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-black pointer-events-none"></div>
 
       {/* Top Header Bar */}
-      <header className="relative z-20 flex items-center justify-between px-3 sm:px-4 py-2 sm:py-3 bg-slate-900/90 border-b border-slate-800 backdrop-blur-md">
+      <header className="relative z-20 flex items-center justify-between px-3 sm:px-4 py-2 sm:py-3 bg-slate-900/90 border-b border-slate-800 backdrop-blur-md mobile-landscape-header">
         <div className="flex items-center gap-2 sm:gap-3">
           <span className="font-title font-black text-xl sm:text-2xl text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-yellow-400 to-green-400 animate-float-slow">
             UNO!
@@ -291,6 +292,16 @@ export default function GameBoard({
             <ScrollText className="w-4 h-4 text-indigo-400" />
             <span className="hidden sm:inline">{showLogs ? 'Hide Logs' : 'Action Logs'}</span>
           </button>
+
+          {/* Leave Game Button */}
+          <button
+            onClick={onLeaveRoom}
+            className="flex items-center gap-1 sm:gap-1.5 px-2.5 py-1.5 bg-red-950/70 hover:bg-red-900/90 border border-red-800/80 rounded-xl text-xs font-semibold text-red-300 hover:text-white transition-all cursor-pointer"
+            title="Leave Game"
+          >
+            <LogOut className="w-4 h-4 text-red-400" />
+            <span className="hidden sm:inline">Leave</span>
+          </button>
         </div>
       </header>
 
@@ -325,7 +336,7 @@ export default function GameBoard({
       {/* Center Table Area */}
       <main className="relative flex-1 flex flex-col items-center justify-between p-2 sm:p-4 max-w-6xl w-full mx-auto">
         {/* Opponents Section */}
-        <div className="w-full flex flex-wrap justify-center items-center gap-2 sm:gap-4 pt-1 sm:pt-2 mb-2 sm:mb-4 max-h-40 sm:max-h-none overflow-y-auto">
+        <div className="w-full flex flex-wrap justify-center items-center gap-2 sm:gap-4 pt-1 sm:pt-2 mb-2 sm:mb-4 max-h-40 sm:max-h-none overflow-y-auto mobile-landscape-opponents">
           {otherPlayers.map((opp) => (
             <div
               key={opp.id}
@@ -409,7 +420,7 @@ export default function GameBoard({
           )}
 
           {/* SLEEK COLOR & PROMINENT DIRECTION PILL */}
-          <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4 bg-slate-900/95 border border-slate-800 px-3 sm:px-6 py-2 sm:py-2.5 rounded-full shadow-2xl backdrop-blur-md max-w-full">
+          <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4 bg-slate-900/95 border border-slate-800 px-3 sm:px-6 py-2 sm:py-2.5 rounded-full shadow-2xl backdrop-blur-md max-w-full mobile-landscape-pill">
             {/* Color Badge */}
             <div className="flex items-center gap-1.5 sm:gap-2">
               <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400">COLOR:</span>
@@ -447,7 +458,7 @@ export default function GameBoard({
           </div>
 
           {/* Cards Table Surface */}
-          <div className="flex items-center justify-center gap-4 sm:gap-10 p-3 sm:p-6 bg-slate-900/50 border border-slate-800/80 rounded-2xl sm:rounded-3xl backdrop-blur-sm shadow-2xl">
+          <div className="flex items-center justify-center gap-4 sm:gap-10 p-3 sm:p-6 bg-slate-900/50 border border-slate-800/80 rounded-2xl sm:rounded-3xl backdrop-blur-sm shadow-2xl mobile-landscape-table-surface">
             {/* Draw Deck with Lift Animation */}
             <div className="flex flex-col items-center gap-1 sm:gap-2">
               <span className="text-[9px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider">
@@ -479,7 +490,7 @@ export default function GameBoard({
                 {topDiscard ? (
                   <Card card={topDiscard} size="large" disabled />
                 ) : (
-                  <div className="w-20 h-30 xs:w-24 xs:h-36 sm:w-28 sm:h-44 rounded-xl sm:rounded-2xl border-2 border-dashed border-slate-700 flex items-center justify-center text-slate-500 text-xs font-bold">
+                  <div className="w-20 h-30 xs:w-24 xs:h-36 sm:w-28 sm:h-44 rounded-xl sm:rounded-2xl border-2 border-dashed border-slate-700 flex items-center justify-center text-slate-500 text-xs font-bold card-large-landscape">
                     Empty
                   </div>
                 )}
@@ -493,7 +504,7 @@ export default function GameBoard({
           {/* Active Turn Banner & TIMER DIRECTLY UNDER/ABOVE ACTIVE PLAYER */}
           <div className="flex items-center gap-2 sm:gap-3">
             {isMyTurn ? (
-              <div className={`px-4 py-1.5 sm:px-6 sm:py-2 rounded-full font-black text-xs sm:text-sm text-white shadow-xl flex items-center gap-1.5 sm:gap-2 transition-all ${
+              <div className={`px-4 py-1.5 sm:px-6 sm:py-2 rounded-full font-black text-xs sm:text-sm text-white shadow-xl flex items-center gap-1.5 sm:gap-2 transition-all mobile-landscape-turn-banner ${
                 timeLeft <= 5
                   ? 'bg-red-600 border border-red-400 animate-pulse shadow-red-600/50 scale-105'
                   : 'bg-gradient-to-r from-emerald-600 to-teal-600 border border-emerald-400 shadow-emerald-950/50'
@@ -502,23 +513,23 @@ export default function GameBoard({
                 <span>✨ YOUR TURN: 0:{timeLeft < 10 ? `0${timeLeft}` : timeLeft}s ✨</span>
               </div>
             ) : (
-              <div className="px-3 py-1 sm:px-5 sm:py-1.5 bg-slate-900 border border-slate-800 text-slate-400 font-semibold text-[10px] sm:text-xs rounded-full flex items-center gap-1.5 sm:gap-2">
+              <div className="px-3 py-1 sm:px-5 sm:py-1.5 bg-slate-900 border border-slate-800 text-slate-400 font-semibold text-[10px] sm:text-xs rounded-full flex items-center gap-1.5 sm:gap-2 mobile-landscape-turn-banner">
                 <span>Waiting for {players[currentTurnIndex]?.name || 'opponent'}'s move...</span>
               </div>
             )}
           </div>
 
           {/* Action Bar: Call UNO Button & Local Player Toast Badge */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 mobile-landscape-action-bar">
             {me.calledUno ? (
-              <div className="px-5 py-2 sm:px-8 sm:py-3 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 text-white font-black text-sm sm:text-lg tracking-wider rounded-xl sm:rounded-2xl shadow-xl shadow-emerald-950/60 border border-emerald-300 flex items-center gap-1.5 sm:gap-2 animate-pulse">
+              <div className="px-5 py-2 sm:px-8 sm:py-3 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 text-white font-black text-sm sm:text-lg tracking-wider rounded-xl sm:rounded-2xl shadow-xl shadow-emerald-950/60 border border-emerald-300 flex items-center gap-1.5 sm:gap-2 animate-pulse mobile-landscape-uno-btn">
                 <CheckCircle2 className="w-4 h-4 sm:w-6 sm:h-6 text-yellow-300" />
                 <span>UNO CALLED!</span>
               </div>
             ) : (
               <button
                 onClick={handleCallUnoClick}
-                className={`px-5 py-2.5 sm:px-8 sm:py-3 bg-gradient-to-r from-red-600 via-rose-600 to-yellow-500 hover:from-red-500 hover:to-yellow-400 text-white font-black text-sm sm:text-lg tracking-wider rounded-xl sm:rounded-2xl shadow-xl shadow-red-950/60 border border-yellow-300 flex items-center gap-1.5 sm:gap-2 transition-all transform active:scale-95 cursor-pointer ${
+                className={`px-5 py-2.5 sm:px-8 sm:py-3 bg-gradient-to-r from-red-600 via-rose-600 to-yellow-500 hover:from-red-500 hover:to-yellow-400 text-white font-black text-sm sm:text-lg tracking-wider rounded-xl sm:rounded-2xl shadow-xl shadow-red-950/60 border border-yellow-300 flex items-center gap-1.5 sm:gap-2 transition-all transform active:scale-95 cursor-pointer mobile-landscape-uno-btn ${
                   me.hand.length <= 2 ? 'opacity-100' : 'opacity-70'
                 }`}
               >
@@ -537,7 +548,7 @@ export default function GameBoard({
           </div>
 
           {/* Player Hand Cards Grid / Scrollable Row with Raised Playable Cards & Slide In */}
-          <div className="w-full max-w-5xl px-2 sm:px-4 flex justify-center items-end -space-x-5 xs:-space-x-4 sm:-space-x-6 overflow-x-auto pb-2 sm:pb-4 pt-4 sm:pt-6 touch-pan-x scrollbar-none">
+          <div className="w-full max-w-5xl px-2 sm:px-4 flex justify-center items-end -space-x-5 xs:-space-x-4 sm:-space-x-6 overflow-x-auto pb-2 sm:pb-4 pt-4 sm:pt-6 touch-pan-x scrollbar-none mobile-landscape-hand-container">
             {me.hand.map((card, idx) => {
               const playable = isCardPlayable(card);
               return (
