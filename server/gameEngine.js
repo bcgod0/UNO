@@ -134,6 +134,9 @@ export function advanceTurn(room, step = 1) {
   const numPlayers = room.players.length;
   if (numPlayers === 0) return;
 
+  room.hasDrawnCard = false;
+  room.drawnCardId = null;
+
   room.currentTurn = (room.currentTurn + (room.direction * step) + numPlayers * 1000) % numPlayers;
 }
 
@@ -172,5 +175,7 @@ export function sanitizeRoomForPlayer(room, socketId) {
     logs: room.logs ? room.logs.slice(-10) : [],
     isMyTurn: room.players[room.currentTurn]?.id === socketId,
     pendingDrawCount: room.pendingDrawCount || 0,
+    hasDrawnCard: room.hasDrawnCard || false,
+    drawnCardId: room.drawnCardId || null,
   };
 }

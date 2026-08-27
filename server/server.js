@@ -82,40 +82,44 @@ function clearTurnTimer(room) {
 }
 
 /**
- * Reset 20-second turn timer for active room
+ * Reset 30-second turn timer for active room
  */
 function resetTurnTimer(room) {
   clearTurnTimer(room);
   if (!room || room.gameState !== 'PLAYING') return;
 
-  room.turnDeadline = Date.now() + 20000;
+  room.turnDeadline = Date.now() + 30000;
 
   room.turnTimer = setTimeout(() => {
     handleTurnTimeout(room);
-  }, 20000);
+  }, 30000);
 }
 
 /**
- * Handle 20-second turn expiration: penalize current player & advance turn
+ * Handle 30-second turn expiration: penalize current player & advance turn
  */
 function handleTurnTimeout(room) {
   if (!room || room.gameState !== 'PLAYING') return;
 
   const currentPlayer = room.players[room.currentTurn];
   if (currentPlayer) {
-    const drawAmount = room.pendingDrawCount > 0 ? room.pendingDrawCount : 1;
-    const penaltyCards = drawCards(room.deck, room.discardPile, drawAmount);
-    if (penaltyCards.length > 0) {
-      currentPlayer.hand.push(...penaltyCards);
-    }
-    if (currentPlayer.hand.length > 1) {
-      currentPlayer.calledUno = false;
-    }
-    if (room.pendingDrawCount > 0) {
-      addLog(room, `⏰ Time's up! ${currentPlayer.name} was penalized ${drawAmount} stacked cards.`);
-      room.pendingDrawCount = 0;
+    if (!room.hasDrawnCard) {
+      const drawAmount = room.pendingDrawCount > 0 ? room.pendingDrawCount : 1;
+      const penaltyCards = drawCards(room.deck, room.discardPile, drawAmount);
+      if (penaltyCards.length > 0) {
+        currentPlayer.hand.push(...penaltyCards);
+      }
+      if (currentPlayer.hand.length > 1) {
+        currentPlayer.calledUno = false;
+      }
+      if (room.pendingDrawCount > 0) {
+        addLog(room, `⏰ Time's up! ${currentPlayer.name} was penalized ${drawAmount} stacked cards.`);
+        room.pendingDrawCount = 0;
+      } else {
+        addLog(room, `⏰ Time's up! ${currentPlayer.name} was penalized 1 card for taking too long.`);
+      }
     } else {
-      addLog(room, `⏰ Time's up! ${currentPlayer.name} was penalized 1 card for taking too long.`);
+      addLog(room, `⏰ Time's up! ${currentPlayer.name} passed turn.`);
     }
   }
 
@@ -173,6 +177,8 @@ io.on('connection', (socket) => {
       winner: null,
       logs: [],
       pendingDrawCount: 0,
+      hasDrawnCard: false,
+      drawnCardId: null,
     };
 
     rooms.set(roomCode, newRoom);
@@ -286,6 +292,12 @@ io.on('connection', (socket) => {
     }
 
     const card = currentPlayer.hand[cardIndex];
+
+    // If player already drew a card this turn, they can ONLY play the drawn card!
+    if (room.hasDrawnCard && room.drawnCardId && card.id !== room.drawnCardId) {
+      return socket.emit('error-msg', 'You can only play the card you just drew!');
+    }
+
     const topDiscard = room.discardPile[room.discardPile.length - 1];
 
     // Check move validity with Stacking Rules
@@ -295,6 +307,10 @@ io.on('connection', (socket) => {
       }
       return socket.emit('error-msg', 'Invalid card play! Card must match color, value, or be a Wild card.');
     }
+
+    // Clear drawn card tracking
+    room.hasDrawnCard = false;
+    room.drawnCardId = null;
 
     // Rule: Penalize any other player holding 1 card who failed to shout UNO before this move!
     checkAndPenalizeUncalledUno(room, currentPlayer.id);
@@ -360,7 +376,7 @@ io.on('connection', (socket) => {
     broadcastRoomState(roomCode);
   });
 
-  // 5. DRAW CARD
+  // 5. DRAW CARD / PASS TURN
   socket.on('draw-card', ({ roomCode }) => {
     const room = rooms.get(roomCode);
     if (!room || room.gameState !== 'PLAYING') return;
@@ -368,6 +384,15 @@ io.on('connection', (socket) => {
     const currentPlayer = room.players[room.currentTurn];
     if (currentPlayer.id !== socket.id) {
       return socket.emit('error-msg', "It's not your turn!");
+    }
+
+    // If player already drew a playable card this turn and clicks pass/draw again -> pass turn!
+    if (room.hasDrawnCard) {
+      addLog(room, `${currentPlayer.name} passed their turn.`);
+      advanceTurn(room, 1);
+      resetTurnTimer(room);
+      broadcastRoomState(roomCode);
+      return;
     }
 
     // Rule: Penalize any other player holding 1 card who failed to shout UNO before this turn move!
@@ -381,15 +406,49 @@ io.on('connection', (socket) => {
       if (currentPlayer.hand.length > 1) {
         currentPlayer.calledUno = false;
       }
+
       if (room.pendingDrawCount > 0) {
         addLog(room, `⚡ ${currentPlayer.name} could not counter and drew ${drawCount} stacked penalty cards!`);
         room.pendingDrawCount = 0;
+        advanceTurn(room, 1);
       } else {
-        addLog(room, `${currentPlayer.name} drew a card.`);
+        const drawnCard = drawn[0];
+        const topDiscard = room.discardPile[room.discardPile.length - 1];
+        const isPlayable = isValidMove(drawnCard, topDiscard, room.currentColor, 0);
+
+        if (isPlayable) {
+          room.hasDrawnCard = true;
+          room.drawnCardId = drawnCard.id;
+          addLog(room, `🃏 ${currentPlayer.name} drew a playable card (${drawnCard.color !== 'wild' ? drawnCard.color.toUpperCase() : ''} ${drawnCard.value || drawnCard.type})!`);
+          // Turn does NOT advance so player can play it immediately or pass
+        } else {
+          addLog(room, `${currentPlayer.name} drew a card (${drawnCard.color !== 'wild' ? drawnCard.color.toUpperCase() : ''} ${drawnCard.value || drawnCard.type}) and ended turn.`);
+          advanceTurn(room, 1);
+        }
       }
+    } else {
+      advanceTurn(room, 1);
     }
 
-    // Advance turn after drawing
+    resetTurnTimer(room);
+    broadcastRoomState(roomCode);
+  });
+
+  // 6. PASS TURN (After drawing a playable card)
+  socket.on('pass-turn', ({ roomCode }) => {
+    const room = rooms.get(roomCode);
+    if (!room || room.gameState !== 'PLAYING') return;
+
+    const currentPlayer = room.players[room.currentTurn];
+    if (currentPlayer.id !== socket.id) {
+      return socket.emit('error-msg', "It's not your turn!");
+    }
+
+    if (!room.hasDrawnCard) {
+      return socket.emit('error-msg', 'You must draw a card before passing your turn!');
+    }
+
+    addLog(room, `${currentPlayer.name} passed their turn.`);
     advanceTurn(room, 1);
     resetTurnTimer(room);
     broadcastRoomState(roomCode);

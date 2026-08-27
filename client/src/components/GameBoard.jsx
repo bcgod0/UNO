@@ -37,7 +37,7 @@ export default function GameBoard({
   const [showLogs, setShowLogs] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isMuted, setIsMuted] = useState(soundManager.muted);
-  const [timeLeft, setTimeLeft] = useState(20);
+  const [timeLeft, setTimeLeft] = useState(30);
   const [localUnoError, setLocalUnoError] = useState('');
   const [isDrawing, setIsDrawing] = useState(false);
 
@@ -59,6 +59,8 @@ export default function GameBoard({
     logs,
     isMyTurn,
     pendingDrawCount = 0,
+    hasDrawnCard = false,
+    drawnCardId = null,
   } = gameState;
 
   // Toggle Sound Mute
@@ -109,10 +111,10 @@ export default function GameBoard({
     }
   }, [gameState.gameState, winner]);
 
-  // 20-Second Turn Countdown Timer & Tick Sound
+  // 30-Second Turn Countdown Timer & Tick Sound
   useEffect(() => {
     if (!turnDeadline) {
-      setTimeLeft(20);
+      setTimeLeft(30);
       return;
     }
 
@@ -163,6 +165,11 @@ export default function GameBoard({
   // Check if a specific card in hand is a legal play (enforces +4 strictly countered by +4 only)
   const isCardPlayable = (card) => {
     if (!isMyTurn || !card) return false;
+
+    // If player already drew a card this turn, ONLY the drawn card can be played!
+    if (hasDrawnCard && drawnCardId) {
+      if (card.id !== drawnCardId) return false;
+    }
 
     // If there is an active stacked draw penalty (+2 or +4):
     if (pendingDrawCount > 0) {
@@ -462,7 +469,7 @@ export default function GameBoard({
             {/* Draw Deck with Lift Animation */}
             <div className="flex flex-col items-center gap-0.5 sm:gap-2">
               <span className="text-[8px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                {pendingDrawCount > 0 ? `Draw (+${pendingDrawCount})` : 'Draw Deck'}
+                {hasDrawnCard ? 'Pass Turn' : pendingDrawCount > 0 ? `Draw (+${pendingDrawCount})` : 'Draw Deck'}
               </span>
               <div className={`relative transition-transform ${isDrawing ? 'animate-draw-card-lift' : ''}`}>
                 <Card isFaceDown size="large" />
@@ -473,8 +480,10 @@ export default function GameBoard({
                     isMyTurn ? 'hover:bg-red-600/30 cursor-pointer border border-yellow-400' : 'cursor-not-allowed opacity-50'
                   }`}
                 >
-                  <span className="bg-slate-950/80 px-1.5 py-0.5 sm:px-3 sm:py-1.5 rounded-md sm:rounded-xl border border-slate-700 shadow text-center">
-                    {pendingDrawCount > 0 ? `TAKE +${pendingDrawCount}` : 'DRAW CARD'}
+                  <span className={`px-1.5 py-0.5 sm:px-3 sm:py-1.5 rounded-md sm:rounded-xl border shadow text-center ${
+                    hasDrawnCard ? 'bg-amber-500 border-amber-300 text-slate-950 animate-pulse font-extrabold' : 'bg-slate-950/80 border-slate-700 text-white'
+                  }`}>
+                    {hasDrawnCard ? 'PASS TURN' : pendingDrawCount > 0 ? `TAKE +${pendingDrawCount}` : 'DRAW CARD'}
                   </span>
                 </button>
               </div>
@@ -507,10 +516,16 @@ export default function GameBoard({
               <div className={`px-3 py-1 sm:px-6 sm:py-2 rounded-full font-black text-[11px] sm:text-sm text-white shadow-xl flex items-center gap-1 sm:gap-2 transition-all mobile-landscape-turn-banner ${
                 timeLeft <= 5
                   ? 'bg-red-600 border border-red-400 animate-pulse shadow-red-600/50 scale-105'
+                  : hasDrawnCard
+                  ? 'bg-gradient-to-r from-amber-600 to-yellow-600 border border-amber-300 shadow-amber-950/50'
                   : 'bg-gradient-to-r from-emerald-600 to-teal-600 border border-emerald-400 shadow-emerald-950/50'
               }`}>
                 <Clock className="w-3 h-3 sm:w-4 sm:h-4 text-yellow-300" />
-                <span>✨ YOUR TURN: 0:{timeLeft < 10 ? `0${timeLeft}` : timeLeft}s ✨</span>
+                <span>
+                  {hasDrawnCard
+                    ? `🃏 DRAWN CARD IS PLAYABLE! Play it or Pass: 0:${timeLeft < 10 ? `0${timeLeft}` : timeLeft}s`
+                    : `✨ YOUR TURN: 0:${timeLeft < 10 ? `0${timeLeft}` : timeLeft}s ✨`}
+                </span>
               </div>
             ) : (
               <div className="px-2.5 py-0.5 sm:px-5 sm:py-1.5 bg-slate-900 border border-slate-800 text-slate-400 font-semibold text-[9px] sm:text-xs rounded-full flex items-center gap-1 sm:gap-2 mobile-landscape-turn-banner">
